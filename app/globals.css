@@ -3,6 +3,7 @@
 :root {
   --font-sora: 'Sora', sans-serif;
   --font-manrope: 'Manrope', sans-serif;
+  color-scheme: light;
 }
 
 body {
