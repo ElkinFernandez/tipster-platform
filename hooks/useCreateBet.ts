@@ -20,6 +20,16 @@ export interface NewBetData {
   legs: NewLeg[]
 }
 
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message
+  }
+  if (err && typeof err === 'object' && 'message' in err) {
+    return String((err as { message: unknown }).message)
+  }
+  return JSON.stringify(err)
+}
+
 export function useCreateBet() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,7 +68,10 @@ export function useCreateBet() {
         .select()
         .single()
 
-      if (betInsert.error) throw betInsert.error
+      if (betInsert.error) {
+        console.error('Error insertando bet:', betInsert.error)
+        throw new Error(getErrorMessage(betInsert.error))
+      }
 
       const betId = betInsert.data.id
 
@@ -78,12 +91,16 @@ export function useCreateBet() {
 
       const legsInsert = await supabase.from('bet_legs').insert(legsToInsert)
 
-      if (legsInsert.error) throw legsInsert.error
+      if (legsInsert.error) {
+        console.error('Error insertando bet_legs:', legsInsert.error)
+        throw new Error(getErrorMessage(legsInsert.error))
+      }
 
       setSaving(false)
       return { success: true, betId: betId }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error desconocido'
+      const message = getErrorMessage(err)
+      console.error('Error completo:', err)
       setError(message)
       setSaving(false)
       return { success: false, betId: null }
