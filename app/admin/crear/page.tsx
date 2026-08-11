@@ -5,13 +5,9 @@ import { useRouter } from 'next/navigation'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useTipster } from '@/hooks/useTipster'
 import { useCreateBet, NewLeg } from '@/hooks/useCreateBet'
+import { LegEditor } from '@/components/LegEditor'
 
 const betTypes = ['SINGLE', 'DOUBLE', 'TRIPLE', '4X', '5X', '6X', '7X', '8X', '9X', '10X']
-const sports = [
-  { value: 'FOOTBALL', label: 'Futbol' },
-  { value: 'TENNIS', label: 'Tenis' },
-  { value: 'BASKETBALL', label: 'Basquet' },
-]
 const stakes = ['0.5', '1.0', '1.5', '2.0']
 
 function emptyLeg(): NewLeg {
@@ -20,8 +16,13 @@ function emptyLeg(): NewLeg {
     league: '',
     competitor_1: '',
     competitor_2: '',
-    market: '',
-    selection: '',
+    sport_market_id: '',
+    market_selection_id: '',
+    market_custom: '',
+    selection_custom: '',
+    selection_free_text: '',
+    market_name_text: '',
+    selection_name_text: '',
     odds: '',
   }
 }
@@ -40,24 +41,40 @@ function CrearApuestaContent() {
   const [successMsg, setSuccessMsg] = useState(false)
 
   function updateLeg(index: number, field: keyof NewLeg, value: string) {
-    const updated = legs.map(function (leg, i) {
-      if (i === index) {
-        const copy = Object.assign({}, leg)
-        copy[field] = value
-        return copy
-      }
-      return leg
+    setLegs(function (prevLegs) {
+      return prevLegs.map(function (leg, i) {
+        if (i === index) {
+          const copy = Object.assign({}, leg)
+          copy[field] = value
+          return copy
+        }
+        return leg
+      })
     })
-    setLegs(updated)
+  }
+
+  function updateLegMultiple(index: number, changes: Partial<NewLeg>) {
+    setLegs(function (prevLegs) {
+      return prevLegs.map(function (leg, i) {
+        if (i === index) {
+          return Object.assign({}, leg, changes)
+        }
+        return leg
+      })
+    })
   }
 
   function addLeg() {
-    setLegs(legs.concat([emptyLeg()]))
+    setLegs(function (prevLegs) {
+      return prevLegs.concat([emptyLeg()])
+    })
   }
 
   function removeLeg(index: number) {
     if (legs.length === 1) return
-    setLegs(legs.filter(function (_, i) { return i !== index }))
+    setLegs(function (prevLegs) {
+      return prevLegs.filter(function (_, i) { return i !== index })
+    })
   }
 
   let combinedOdds = 1
@@ -88,7 +105,17 @@ function CrearApuestaContent() {
   }
 
   const isValid = legs.every(function (leg) {
-    return leg.league && leg.competitor_1 && leg.competitor_2 && leg.market && leg.selection && leg.odds
+    const hasBasics = leg.league && leg.competitor_1 && leg.competitor_2 && leg.odds
+
+    if (leg.sport_market_id === 'CUSTOM') {
+      return hasBasics && leg.market_custom && leg.selection_custom
+    }
+
+    if (leg.market_selection_id === 'FREE_TEXT') {
+      return hasBasics && leg.sport_market_id && leg.selection_free_text
+    }
+
+    return hasBasics && leg.sport_market_id && leg.market_selection_id
   })
 
   const labelClass = 'text-xs font-bold uppercase tracking-wider text-[#4B5563] mb-2'
@@ -151,34 +178,15 @@ function CrearApuestaContent() {
 
         {legs.map(function (leg, index) {
           return (
-            <section key={index} className="rounded-3xl border border-black/15 bg-white p-5">
-              <div className="flex items-center justify-between mb-4">
-                <p className={labelClass + ' mb-0'}>Evento {index + 1}</p>
-                {legs.length > 1 && (
-                  <button onClick={function () { removeLeg(index) }} className="text-xs text-[#E23A52] font-bold">Quitar</button>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <select value={leg.sport} onChange={function (e) { updateLeg(index, 'sport', e.target.value) }} className={inputClass}>
-                  {sports.map(function (s) { return <option key={s.value} value={s.value}>{s.label}</option> })}
-                </select>
-
-                <input value={leg.league} onChange={function (e) { updateLeg(index, 'league', e.target.value) }} placeholder="Liga (ej: LaLiga)" className={inputClass} />
-
-                <div className="grid grid-cols-2 gap-3">
-                  <input value={leg.competitor_1} onChange={function (e) { updateLeg(index, 'competitor_1', e.target.value) }} placeholder="Competidor 1" className={inputClass} />
-                  <input value={leg.competitor_2} onChange={function (e) { updateLeg(index, 'competitor_2', e.target.value) }} placeholder="Competidor 2" className={inputClass} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <input value={leg.market} onChange={function (e) { updateLeg(index, 'market', e.target.value) }} placeholder="Mercado (ej: Over 2.5)" className={inputClass} />
-                  <input value={leg.selection} onChange={function (e) { updateLeg(index, 'selection', e.target.value) }} placeholder="Seleccion (ej: Over)" className={inputClass} />
-                </div>
-
-                <input value={leg.odds} onChange={function (e) { updateLeg(index, 'odds', e.target.value) }} placeholder="Cuota (ej: 1.85)" type="number" step="0.01" className={inputClass} />
-              </div>
-            </section>
+            <LegEditor
+              key={index}
+              index={index}
+              leg={leg}
+              onChange={updateLeg}
+              onChangeMultiple={updateLegMultiple}
+              onRemove={removeLeg}
+              canRemove={legs.length > 1}
+            />
           )
         })}
 

@@ -1,13 +1,19 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { toTitleCase } from '@/lib/utils'
 
 export interface NewLeg {
   sport: string
   league: string
   competitor_1: string
   competitor_2: string
-  market: string
-  selection: string
+  sport_market_id: string
+  market_selection_id: string
+  market_custom: string
+  selection_custom: string
+  selection_free_text: string
+  market_name_text: string
+  selection_name_text: string
   odds: string
 }
 
@@ -21,12 +27,8 @@ export interface NewBetData {
 }
 
 function getErrorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    return err.message
-  }
-  if (err && typeof err === 'object' && 'message' in err) {
-    return String((err as { message: unknown }).message)
-  }
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: unknown }).message)
   return JSON.stringify(err)
 }
 
@@ -44,9 +46,7 @@ export function useCreateBet() {
       let combinedOdds = 1
       data.legs.forEach(function (leg) {
         const oddsNum = parseFloat(leg.odds)
-        if (!isNaN(oddsNum)) {
-          combinedOdds = combinedOdds * oddsNum
-        }
+        if (!isNaN(oddsNum)) combinedOdds = combinedOdds * oddsNum
       })
 
       const stakeNum = parseFloat(data.stake)
@@ -76,14 +76,46 @@ export function useCreateBet() {
       const betId = betInsert.data.id
 
       const legsToInsert = data.legs.map(function (leg) {
+        const isCustom = leg.sport_market_id === 'CUSTOM'
+        const isFreeTextSelection = leg.market_selection_id === 'FREE_TEXT'
+
+        const leagueClean = toTitleCase(leg.league)
+        const comp1Clean = toTitleCase(leg.competitor_1)
+        const comp2Clean = toTitleCase(leg.competitor_2)
+
+        let marketFinal = leg.market_name_text
+        let selectionFinal = leg.selection_name_text
+        let sportMarketIdFinal: string | null = leg.sport_market_id
+        let marketSelectionIdFinal: string | null = leg.market_selection_id
+        let marketCustomFinal: string | null = null
+        let selectionCustomFinal: string | null = null
+
+        if (isCustom) {
+          marketFinal = toTitleCase(leg.market_custom)
+          selectionFinal = toTitleCase(leg.selection_custom)
+          sportMarketIdFinal = null
+          marketSelectionIdFinal = null
+          marketCustomFinal = toTitleCase(leg.market_custom)
+          selectionCustomFinal = toTitleCase(leg.selection_custom)
+        } else if (isFreeTextSelection) {
+          selectionFinal = toTitleCase(leg.selection_free_text)
+          marketSelectionIdFinal = null
+        } else {
+          selectionFinal = toTitleCase(leg.selection_name_text)
+        }
+
         return {
           bet_id: betId,
           sport: leg.sport,
-          league: leg.league,
-          competitor_1: leg.competitor_1,
-          competitor_2: leg.competitor_2,
-          market: leg.market,
-          selection: leg.selection,
+          league: leagueClean,
+          competitor_1: comp1Clean,
+          competitor_2: comp2Clean,
+          sport_market_id: sportMarketIdFinal,
+          market_selection_id: marketSelectionIdFinal,
+          market_custom: marketCustomFinal,
+          selection_custom: selectionCustomFinal,
+          market: marketFinal,
+          selection: selectionFinal,
           odds: parseFloat(leg.odds),
           status: 'PENDING',
         }
