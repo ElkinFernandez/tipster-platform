@@ -21,6 +21,21 @@ interface TypeBreakdown {
   win_rate: number
 }
 
+interface TimingBreakdown {
+  timing: string
+  count: number
+  percentage: number
+  win_rate: number
+}
+
+interface AnalysisBreakdown {
+  analysis: string
+  count: number
+  percentage: number
+  win_rate: number
+  profit: number
+}
+
 export function useFullStats() {
   const [general, setGeneral] = useState<GeneralStats>({
     total_bets: 0,
@@ -31,10 +46,11 @@ export function useFullStats() {
   })
   const [bySport, setBySport] = useState<SportBreakdown[]>([])
   const [byType, setByType] = useState<TypeBreakdown[]>([])
+  const [byTiming, setByTiming] = useState<TimingBreakdown[]>([])
+  const [byAnalysis, setByAnalysis] = useState<AnalysisBreakdown[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
 
-  useEffect(() => {
+  useEffect(function () {
     const fetchAll = async function () {
       try {
         setLoading(true)
@@ -54,12 +70,8 @@ export function useFullStats() {
         }).length
         const winRate = total > 0 ? (won / total) * 100 : 0
 
-        const totalProfit = bets.reduce(function (sum, b) {
-          return sum + Number(b.profit || 0)
-        }, 0)
-        const totalStake = bets.reduce(function (sum, b) {
-          return sum + Number(b.stake || 0)
-        }, 0)
+        const totalProfit = bets.reduce(function (sum, b) { return sum + Number(b.profit || 0) }, 0)
+        const totalStake = bets.reduce(function (sum, b) { return sum + Number(b.stake || 0) }, 0)
         const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0
         const avgOdds = total > 0
           ? bets.reduce(function (sum, b) { return sum + Number(b.odds_combined || 0) }, 0) / total
@@ -79,9 +91,7 @@ export function useFullStats() {
           const uniqueSports = new Set(legs.map(function (l: { sport: string }) { return l.sport }))
           uniqueSports.forEach(function (sport) {
             const key = String(sport)
-            if (!sportMap[key]) {
-              sportMap[key] = { profit: 0, count: 0 }
-            }
+            if (!sportMap[key]) sportMap[key] = { profit: 0, count: 0 }
             sportMap[key].profit += Number(bet.profit || 0)
             sportMap[key].count += 1
           })
@@ -94,13 +104,9 @@ export function useFullStats() {
         const typeMap: Record<string, { won: number; total: number }> = {}
         bets.forEach(function (bet) {
           const key = bet.type
-          if (!typeMap[key]) {
-            typeMap[key] = { won: 0, total: 0 }
-          }
+          if (!typeMap[key]) typeMap[key] = { won: 0, total: 0 }
           typeMap[key].total += 1
-          if (bet.status === 'WIN' || bet.status === 'PARTIAL_WIN') {
-            typeMap[key].won += 1
-          }
+          if (bet.status === 'WIN' || bet.status === 'PARTIAL_WIN') typeMap[key].won += 1
         })
         const typeList = Object.keys(typeMap).map(function (key) {
           const data = typeMap[key]
@@ -108,8 +114,39 @@ export function useFullStats() {
           return { type: key, count: data.total, win_rate: Math.round(wr * 10) / 10 }
         })
         setByType(typeList)
+
+        const timingMap: Record<string, { won: number; total: number }> = {}
+        bets.forEach(function (bet) {
+          const key = bet.timing
+          if (!timingMap[key]) timingMap[key] = { won: 0, total: 0 }
+          timingMap[key].total += 1
+          if (bet.status === 'WIN' || bet.status === 'PARTIAL_WIN') timingMap[key].won += 1
+        })
+        const timingList = Object.keys(timingMap).map(function (key) {
+          const data = timingMap[key]
+          const wr = data.total > 0 ? (data.won / data.total) * 100 : 0
+          const pct = total > 0 ? (data.total / total) * 100 : 0
+          return { timing: key, count: data.total, percentage: Math.round(pct * 10) / 10, win_rate: Math.round(wr * 10) / 10 }
+        })
+        setByTiming(timingList)
+
+        const analysisMap: Record<string, { won: number; total: number; profit: number }> = {}
+        bets.forEach(function (bet) {
+          const key = bet.analysis_type
+          if (!analysisMap[key]) analysisMap[key] = { won: 0, total: 0, profit: 0 }
+          analysisMap[key].total += 1
+          analysisMap[key].profit += Number(bet.profit || 0)
+          if (bet.status === 'WIN' || bet.status === 'PARTIAL_WIN') analysisMap[key].won += 1
+        })
+        const analysisList = Object.keys(analysisMap).map(function (key) {
+          const data = analysisMap[key]
+          const wr = data.total > 0 ? (data.won / data.total) * 100 : 0
+          const pct = total > 0 ? (data.total / total) * 100 : 0
+          return { analysis: key, count: data.total, percentage: Math.round(pct * 10) / 10, win_rate: Math.round(wr * 10) / 10, profit: Math.round(data.profit * 100) / 100 }
+        })
+        setByAnalysis(analysisList)
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Unknown error'))
+        console.error('Error cargando estadisticas:', err)
       } finally {
         setLoading(false)
       }
@@ -118,5 +155,5 @@ export function useFullStats() {
     fetchAll()
   }, [])
 
-  return { general, bySport, byType, loading, error }
+  return { general, bySport, byType, byTiming, byAnalysis, loading }
 }

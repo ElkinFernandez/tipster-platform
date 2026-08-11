@@ -3,27 +3,39 @@ import { createClient } from '@/lib/supabase/client'
 import { Bet, Sport } from '@/types'
 
 export type SportFilter = 'ALL' | Sport
+export type StatusFilter = 'ALL' | 'WIN' | 'LOSS' | 'PARTIAL_WIN' | 'VOID'
+export type TypeFilter = 'ALL' | string
 
-export function useAllBets(sportFilter: SportFilter) {
+export function useAllBets(sportFilter: SportFilter, statusFilter: StatusFilter, typeFilter: TypeFilter) {
   const [bets, setBets] = useState<Bet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  useEffect(() => {
-    const fetchBets = async () => {
+  useEffect(function () {
+    const fetchBets = async function () {
       try {
         setLoading(true)
         const supabase = createClient()
 
-        const { data, error } = await supabase
+        let query = supabase
           .from('bets')
           .select('*, bet_legs(sport, league)')
           .neq('status', 'PENDING')
           .order('created_at', { ascending: false })
 
-        if (error) throw error
+        if (statusFilter !== 'ALL') {
+          query = query.eq('status', statusFilter)
+        }
 
-        const allBets = data || []
+        if (typeFilter !== 'ALL') {
+          query = query.eq('type', typeFilter)
+        }
+
+        const result = await query
+
+        if (result.error) throw result.error
+
+        const allBets = result.data || []
 
         if (sportFilter === 'ALL') {
           setBets(allBets)
@@ -44,7 +56,7 @@ export function useAllBets(sportFilter: SportFilter) {
     }
 
     fetchBets()
-  }, [sportFilter])
+  }, [sportFilter, statusFilter, typeFilter])
 
   return { bets, loading, error }
 }

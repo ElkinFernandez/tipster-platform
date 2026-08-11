@@ -13,7 +13,7 @@ export default function PerfilPage() {
   const instagramUrl = tipster?.instagram_url
 
   return (
-    <div className="min-h-screen bg-[#F9F7F1]">
+    <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
           <a href="/" className="font-display font-bold tracking-wide text-sm sm:text-base">TIPSTER PLATFORM</a>
@@ -24,44 +24,36 @@ export default function PerfilPage() {
       <section className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 pt-8 pb-12 text-center">
           <div className="h-20 w-20 rounded-full border-2 border-white/20 mx-auto mb-4"></div>
-          <h1 className="font-display text-2xl font-extrabold">
-            {loadingTipster ? '...' : displayName}
-          </h1>
-          <p className="text-sm text-white/50 mt-1">
-            {loadingStats ? '' : stats.total_bets + ' pronosticos publicados'}
-          </p>
+          <h1 className="font-display text-2xl font-extrabold">{loadingTipster ? '...' : displayName}</h1>
+          <p className="text-sm text-white/50 mt-1">{loadingStats ? '' : stats.total_bets + ' pronosticos publicados'}</p>
         </div>
       </section>
 
-      <main className="max-w-2xl mx-auto px-5 sm:px-8 py-8">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-8">
         <p className="text-xs font-bold uppercase tracking-wider text-[#FFA94D] mb-2">Metodologia</p>
-        <p className="text-sm text-[#6B7280] leading-relaxed mb-8">
-          {bio}
-        </p>
+        <p className="text-sm text-[#4B5563] leading-relaxed mb-8">{bio}</p>
 
         <p className="text-xs font-bold uppercase tracking-wider text-[#FFA94D] mb-2">Gestion de riesgo</p>
-        <p className="text-sm text-[#6B7280] leading-relaxed mb-8">
-          Las apuestas deportivas implican riesgo real. Los resultados pasados no garantizan resultados futuros.
-        </p>
+        <p className="text-sm text-[#4B5563] leading-relaxed mb-8">Las apuestas deportivas implican riesgo real. Los resultados pasados no garantizan resultados futuros.</p>
 
         <div className="flex flex-col sm:flex-row gap-3 mb-10">
           {telegramUrl && (
             <a href={telegramUrl} className="rounded-2xl bg-[#FFA94D] text-white font-bold text-sm py-3 px-6 text-center">Telegram</a>
           )}
           {instagramUrl && (
-            <a href={instagramUrl} className="rounded-2xl border border-black/15 text-[#1F2937] font-bold text-sm py-3 px-6 text-center">Instagram</a>
+            <a href={instagramUrl} className="rounded-2xl border border-black/20 text-[#1F2937] font-bold text-sm py-3 px-6 text-center">Instagram</a>
           )}
           {!telegramUrl && !instagramUrl && (
-            <p className="text-xs text-[#9CA3AF] italic">Este tipster aun no agrego sus redes sociales.</p>
+            <p className="text-xs text-[#4B5563] italic">Este tipster aun no agrego sus redes sociales.</p>
           )}
         </div>
       </main>
 
-      <nav className="sticky bottom-0 bg-[#F9F7F1]/95 backdrop-blur-sm border-t border-black/10">
+      <nav className="sticky bottom-0 bg-[#F3F1EA]/95 backdrop-blur-sm border-t border-black/15">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-3 flex justify-between text-xs">
-          <a href="/" className="text-[#9CA3AF]">Inicio</a>
-          <a href="/resultados" className="text-[#9CA3AF]">Resultados</a>
-          <a href="/estadisticas" className="text-[#9CA3AF]">Estadisticas</a>
+          <a href="/" className="text-[#4B5563]">Inicio</a>
+          <a href="/resultados" className="text-[#4B5563]">Resultados</a>
+          <a href="/estadisticas" className="text-[#4B5563]">Estadisticas</a>
           <span className="font-semibold text-[#1F2937]">Perfil</span>
         </div>
       </nav>
