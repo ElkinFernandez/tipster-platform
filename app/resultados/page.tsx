@@ -2,22 +2,11 @@
 
 import { useState } from 'react'
 import { useAllBets, SportFilter, StatusFilter, TypeFilter } from '@/hooks/useAllBets'
+import { getStatusColor, formatBetType, formatDate } from '@/lib/utils'
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
   return sign + value.toFixed(2) + 'u'
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-}
-
-const statusColor: Record<string, string> = {
-  WIN: '#10B981',
-  PARTIAL_WIN: '#10B981',
-  LOSS: '#FF7A8C',
-  VOID: '#9CA3AF',
 }
 
 const sportOptions = [
@@ -37,12 +26,12 @@ const statusOptions = [
 
 const typeOptions = [
   { value: 'ALL', label: 'Todos' },
-  { value: 'SINGLE', label: 'Simple' },
+  { value: 'SINGLE', label: 'Sencilla' },
   { value: 'DOUBLE', label: 'Doble' },
   { value: 'TRIPLE', label: 'Triple' },
-  { value: '4X', label: '4X' },
-  { value: '5X', label: '5X' },
-  { value: '6X', label: '6X' },
+  { value: '4X', label: 'Cuadruple' },
+  { value: '5X', label: 'Quintuple' },
+  { value: '6X', label: 'Sextuple' },
 ]
 
 export default function ResultadosPage() {
@@ -53,6 +42,7 @@ export default function ResultadosPage() {
 
   const selectClass = 'w-full rounded-xl border border-black/20 bg-white px-3 py-2.5 text-xs font-semibold text-[#1F2937]'
   const labelClass = 'text-[10px] font-bold uppercase tracking-wider text-[#4B5563] mb-1.5 block'
+  const badgeClass = 'shrink-0 w-[76px] text-center text-[10px] font-bold uppercase tracking-wide text-[#3FA9B7] bg-[#3FA9B7]/15 rounded-full px-2 py-1'
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
@@ -98,20 +88,20 @@ export default function ResultadosPage() {
         {!loading && bets.length > 0 && (
           <div className="divide-y divide-black/10 border-t border-black/10">
             {bets.map(function (bet) {
-              const color = statusColor[bet.status] || '#1F2937'
+              const color = getStatusColor(bet.status)
               const detailUrl = '/resultados/' + bet.id
               const oddsText = 'Cuota ' + Number(bet.odds_combined).toFixed(2) + ' - Stake ' + Number(bet.stake).toFixed(1) + 'u'
               const profitText = formatUnits(Number(bet.profit))
               return (
                 <a key={bet.id} href={detailUrl} className="flex items-center justify-between py-4 hover:bg-white/60 transition -mx-2 px-2 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-[#3FA9B7] bg-[#3FA9B7]/15 rounded-full px-2.5 py-1">{bet.type}</span>
-                    <div>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={badgeClass}>{formatBetType(bet.type)}</span>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-[#1F2937]">{formatDate(bet.created_at)}</p>
-                      <p className="text-xs text-[#4B5563]">{oddsText}</p>
+                      <p className="text-xs text-[#4B5563] truncate">{oddsText}</p>
                     </div>
                   </div>
-                  <span className="text-sm font-bold whitespace-nowrap" style={{ color: color }}>{profitText}</span>
+                  <span className="text-sm font-bold whitespace-nowrap ml-3" style={{ color: color }}>{profitText}</span>
                 </a>
               )
             })}

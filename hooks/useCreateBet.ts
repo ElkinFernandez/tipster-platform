@@ -22,8 +22,10 @@ export interface NewBetData {
   timing: string
   analysis_type: string
   stake: string
-  notes: string
+  explanation_url: string
+  evidence_url: string
   legs: NewLeg[]
+  created_at: string
 }
 
 function getErrorMessage(err: unknown): string {
@@ -50,6 +52,7 @@ export function useCreateBet() {
       })
 
       const stakeNum = parseFloat(data.stake)
+      const createdAtISO = new Date(data.created_at).toISOString()
 
       const betInsert = await supabase
         .from('bets')
@@ -63,7 +66,10 @@ export function useCreateBet() {
           stake: stakeNum,
           profit: 0,
           status: 'PENDING',
-          notes: data.notes || null,
+          explanation_url: data.explanation_url || null,
+          evidence_url: data.evidence_url || null,
+          created_at: createdAtISO,
+          published_at: createdAtISO,
         })
         .select()
         .single()
@@ -76,33 +82,13 @@ export function useCreateBet() {
       const betId = betInsert.data.id
 
       const legsToInsert = data.legs.map(function (leg) {
-        const isCustom = leg.sport_market_id === 'CUSTOM'
-        const isFreeTextSelection = leg.market_selection_id === 'FREE_TEXT'
+        const isFreeText = leg.market_selection_id === 'FREE_TEXT'
 
         const leagueClean = toTitleCase(leg.league)
         const comp1Clean = toTitleCase(leg.competitor_1)
         const comp2Clean = toTitleCase(leg.competitor_2)
 
-        let marketFinal = leg.market_name_text
-        let selectionFinal = leg.selection_name_text
-        let sportMarketIdFinal: string | null = leg.sport_market_id
-        let marketSelectionIdFinal: string | null = leg.market_selection_id
-        let marketCustomFinal: string | null = null
-        let selectionCustomFinal: string | null = null
-
-        if (isCustom) {
-          marketFinal = toTitleCase(leg.market_custom)
-          selectionFinal = toTitleCase(leg.selection_custom)
-          sportMarketIdFinal = null
-          marketSelectionIdFinal = null
-          marketCustomFinal = toTitleCase(leg.market_custom)
-          selectionCustomFinal = toTitleCase(leg.selection_custom)
-        } else if (isFreeTextSelection) {
-          selectionFinal = toTitleCase(leg.selection_free_text)
-          marketSelectionIdFinal = null
-        } else {
-          selectionFinal = toTitleCase(leg.selection_name_text)
-        }
+        const selectionFinal = isFreeText ? toTitleCase(leg.selection_free_text) : leg.selection_name_text
 
         return {
           bet_id: betId,
@@ -110,14 +96,15 @@ export function useCreateBet() {
           league: leagueClean,
           competitor_1: comp1Clean,
           competitor_2: comp2Clean,
-          sport_market_id: sportMarketIdFinal,
-          market_selection_id: marketSelectionIdFinal,
-          market_custom: marketCustomFinal,
-          selection_custom: selectionCustomFinal,
-          market: marketFinal,
+          sport_market_id: leg.sport_market_id,
+          market_selection_id: isFreeText ? null : leg.market_selection_id,
+          market_custom: null,
+          selection_custom: null,
+          market: leg.market_name_text,
           selection: selectionFinal,
           odds: parseFloat(leg.odds),
           status: 'PENDING',
+          created_at: createdAtISO,
         }
       })
 

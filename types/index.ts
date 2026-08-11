@@ -1,4 +1,3 @@
-// Tipster
 export interface Tipster {
   id: string
   username: string
@@ -10,7 +9,6 @@ export interface Tipster {
   created_at: string
 }
 
-// Bet Types
 export type BetType = 'SINGLE' | 'DOUBLE' | 'TRIPLE' | '4X' | '5X' | '6X' | '7X' | '8X' | '9X' | '10X'
 export type BetTiming = 'LIVE' | 'PRE_MATCH'
 export type AnalysisType = 'SOFTWARE' | 'MANUAL'
@@ -30,11 +28,13 @@ export interface Bet {
   published_at: string
   result_at: string | null
   notes: string | null
+  telegram_url: string | null
+  explanation_url: string | null
+  evidence_url: string | null
   created_at: string
   updated_at: string
 }
 
-// Bet Leg Types
 export type Sport = 'FOOTBALL' | 'TENNIS' | 'BASKETBALL'
 export type BetLegStatus = 'WIN' | 'LOSS' | 'VOID'
 
@@ -53,7 +53,6 @@ export interface BetLeg {
   created_at: string
 }
 
-// User / Admin
 export interface User {
   id: string
   email: string
@@ -62,7 +61,6 @@ export interface User {
   created_at: string
 }
 
-// Statistics
 export interface BetStats {
   total_bets: number
   win_rate: number

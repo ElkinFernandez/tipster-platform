@@ -6,24 +6,51 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useTipster } from '@/hooks/useTipster'
 import { useCreateBet, NewLeg } from '@/hooks/useCreateBet'
 import { LegEditor } from '@/components/LegEditor'
+import { createClient } from '@/lib/supabase/client'
+import { toTitleCase, betTypeLabel } from '@/lib/utils'
 
-const betTypes = ['SINGLE', 'DOUBLE', 'TRIPLE', '4X', '5X', '6X', '7X', '8X', '9X', '10X']
 const stakes = ['0.5', '1.0', '1.5', '2.0']
+
+const typeByCount: Record<number, string> = {
+  1: 'SINGLE', 2: 'DOUBLE', 3: 'TRIPLE', 4: '4X', 5: '5X', 6: '6X', 7: '7X', 8: '8X', 9: '9X', 10: '10X',
+}
+
+function nowForInput(): string {
+  const now = new Date()
+  const offset = now.getTimezoneOffset()
+  const local = new Date(now.getTime() - offset * 60000)
+  return local.toISOString().slice(0, 16)
+}
 
 function emptyLeg(): NewLeg {
   return {
-    sport: 'FOOTBALL',
-    league: '',
-    competitor_1: '',
-    competitor_2: '',
-    sport_market_id: '',
-    market_selection_id: '',
-    market_custom: '',
-    selection_custom: '',
-    selection_free_text: '',
-    market_name_text: '',
-    selection_name_text: '',
-    odds: '',
+    sport: 'FOOTBALL', league: '', competitor_1: '', competitor_2: '',
+    sport_market_id: '', market_selection_id: '', market_custom: '', selection_custom: '',
+    selection_free_text: '', market_name_text: '', selection_name_text: '', odds: '',
+  }
+}
+
+async function registerNewEntity(entityType: 'COMPETITOR' | 'LEAGUE', sport: string, name: string) {
+  const clean = toTitleCase(name)
+  if (!clean) return
+
+  try {
+    const supabase = createClient()
+    const existing = await supabase
+      .from('known_entities')
+      .select('id, usage_count')
+      .eq('entity_type', entityType)
+      .eq('sport', sport)
+      .eq('name', clean)
+      .maybeSingle()
+
+    if (existing.data) {
+      await supabase.from('known_entities').update({ usage_count: existing.data.usage_count + 1 }).eq('id', existing.data.id)
+    } else {
+      await supabase.from('known_entities').insert({ entity_type: entityType, sport: sport, name: clean, usage_count: 1 })
+    }
+  } catch (err) {
+    console.error('Error registrando entidad:', err)
   }
 }
 
@@ -32,13 +59,16 @@ function CrearApuestaContent() {
   const { tipster } = useTipster()
   const { createBet, saving, error } = useCreateBet()
 
-  const [type, setType] = useState('SINGLE')
   const [timing, setTiming] = useState('PRE_MATCH')
   const [analysisType, setAnalysisType] = useState('MANUAL')
   const [stake, setStake] = useState('1.0')
-  const [notes, setNotes] = useState('')
+  const [explanationUrl, setExplanationUrl] = useState('')
+  const [evidenceUrl, setEvidenceUrl] = useState('')
   const [legs, setLegs] = useState<NewLeg[]>([emptyLeg()])
   const [successMsg, setSuccessMsg] = useState(false)
+  const [createdAt, setCreatedAt] = useState(nowForInput())
+
+  const calculatedType = typeByCount[legs.length] || (legs.length + 'X')
 
   function updateLeg(index: number, field: keyof NewLeg, value: string) {
     setLegs(function (prevLegs) {
@@ -56,25 +86,20 @@ function CrearApuestaContent() {
   function updateLegMultiple(index: number, changes: Partial<NewLeg>) {
     setLegs(function (prevLegs) {
       return prevLegs.map(function (leg, i) {
-        if (i === index) {
-          return Object.assign({}, leg, changes)
-        }
+        if (i === index) return Object.assign({}, leg, changes)
         return leg
       })
     })
   }
 
   function addLeg() {
-    setLegs(function (prevLegs) {
-      return prevLegs.concat([emptyLeg()])
-    })
+    if (legs.length >= 10) return
+    setLegs(function (prevLegs) { return prevLegs.concat([emptyLeg()]) })
   }
 
   function removeLeg(index: number) {
     if (legs.length === 1) return
-    setLegs(function (prevLegs) {
-      return prevLegs.filter(function (_, i) { return i !== index })
-    })
+    setLegs(function (prevLegs) { return prevLegs.filter(function (_, i) { return i !== index }) })
   }
 
   let combinedOdds = 1
@@ -88,34 +113,38 @@ function CrearApuestaContent() {
     setSuccessMsg(false)
 
     const result = await createBet(
-      { type: type, timing: timing, analysis_type: analysisType, stake: stake, notes: notes, legs: legs },
+      { type: calculatedType, timing: timing, analysis_type: analysisType, stake: stake, explanation_url: explanationUrl, evidence_url: evidenceUrl, legs: legs, created_at: createdAt },
       tipster.id
     )
 
     if (result.success) {
+      for (const leg of legs) {
+        await registerNewEntity('LEAGUE', leg.sport, leg.league)
+        await registerNewEntity('COMPETITOR', leg.sport, leg.competitor_1)
+        await registerNewEntity('COMPETITOR', leg.sport, leg.competitor_2)
+      }
+
       setSuccessMsg(true)
-      setType('SINGLE')
       setTiming('PRE_MATCH')
       setAnalysisType('MANUAL')
       setStake('1.0')
-      setNotes('')
+      setExplanationUrl('')
+      setEvidenceUrl('')
       setLegs([emptyLeg()])
+      setCreatedAt(nowForInput())
       setTimeout(function () { router.push('/admin') }, 1500)
     }
   }
 
   const isValid = legs.every(function (leg) {
     const hasBasics = leg.league && leg.competitor_1 && leg.competitor_2 && leg.odds
-
-    if (leg.sport_market_id === 'CUSTOM') {
-      return hasBasics && leg.market_custom && leg.selection_custom
-    }
+    const hasMarket = leg.sport_market_id ? true : false
 
     if (leg.market_selection_id === 'FREE_TEXT') {
-      return hasBasics && leg.sport_market_id && leg.selection_free_text
+      return hasBasics && hasMarket && leg.selection_free_text
     }
 
-    return hasBasics && leg.sport_market_id && leg.market_selection_id
+    return hasBasics && hasMarket && leg.market_selection_id
   })
 
   const labelClass = 'text-xs font-bold uppercase tracking-wider text-[#4B5563] mb-2'
@@ -144,17 +173,23 @@ function CrearApuestaContent() {
           </div>
         )}
 
-        <section className="rounded-3xl border border-black/15 bg-white p-5">
-          <p className={labelClass}>Tipo de apuesta</p>
-          <div className="flex flex-wrap gap-2">
-            {betTypes.map(function (t) {
-              const active = type === t
-              const cls = active ? 'bg-[#1F2937] text-white' : 'bg-white text-[#1F2937] border border-black/25'
-              return (
-                <button key={t} onClick={function () { setType(t) }} className={'rounded-full text-xs font-bold px-3 py-2 ' + cls}>{t}</button>
-              )
-            })}
+        <section className="rounded-3xl border border-black/15 bg-white p-5 flex items-center justify-between">
+          <div>
+            <p className={labelClass + ' mb-1'}>Tipo de apuesta</p>
+            <p className="font-display text-lg font-extrabold text-[#1F2937]">{betTypeLabel[calculatedType] || calculatedType}</p>
           </div>
+          <p className="text-xs text-[#4B5563]">Se calcula segun cuantos eventos agregues</p>
+        </section>
+
+        <section className="rounded-3xl border border-black/15 bg-white p-5">
+          <p className={labelClass}>Fecha y hora del pronostico</p>
+          <input
+            type="datetime-local"
+            value={createdAt}
+            onChange={function (e) { setCreatedAt(e.target.value) }}
+            className={inputClass}
+          />
+          <p className="text-xs text-[#4B5563] mt-2">Por defecto es ahora. Cambiala solo si estas cargando un pronostico de una fecha anterior.</p>
         </section>
 
         <section className="rounded-3xl border border-black/15 bg-white p-5">
@@ -190,7 +225,9 @@ function CrearApuestaContent() {
           )
         })}
 
-        <button onClick={addLeg} className="w-full rounded-2xl border-2 border-dashed border-black/25 text-sm font-bold text-[#4B5563] py-3">+ Agregar evento</button>
+        {legs.length < 10 && (
+          <button onClick={addLeg} className="w-full rounded-2xl border-2 border-dashed border-black/25 text-sm font-bold text-[#4B5563] py-3">+ Agregar evento</button>
+        )}
 
         <section className="rounded-3xl border border-black/15 bg-white p-5">
           <div className="grid grid-cols-2 gap-4 mb-4">
@@ -205,9 +242,28 @@ function CrearApuestaContent() {
               <div className="w-full rounded-xl border border-black/20 bg-[#F3F1EA] p-3 text-sm font-extrabold text-[#1F2937]">{combinedOdds.toFixed(2)}</div>
             </div>
           </div>
+        </section>
 
-          <p className={labelClass}>Notas (opcional)</p>
-          <textarea value={notes} onChange={function (e) { setNotes(e.target.value) }} placeholder="Razonamiento, analisis personal..." rows={3} className={inputClass}></textarea>
+        <section className="rounded-3xl border border-black/15 bg-white p-5">
+          <p className={labelClass}>Enlace explicacion (Telegram)</p>
+          <input
+            value={explanationUrl}
+            onChange={function (e) { setExplanationUrl(e.target.value) }}
+            placeholder="https://t.me/tu_canal/123"
+            type="url"
+            className={inputClass}
+          />
+          <p className="text-xs text-[#4B5563] mt-2 mb-4">Mensaje donde explicas el analisis de esta apuesta.</p>
+
+          <p className={labelClass}>Enlace evidencia de cuota (Telegram)</p>
+          <input
+            value={evidenceUrl}
+            onChange={function (e) { setEvidenceUrl(e.target.value) }}
+            placeholder="https://t.me/tu_canal/124"
+            type="url"
+            className={inputClass}
+          />
+          <p className="text-xs text-[#4B5563] mt-2">Mensaje con la captura de pantalla de la cuota real apostada.</p>
         </section>
 
         <button onClick={handleSubmit} disabled={!isValid || saving} className="w-full rounded-2xl bg-[#FFA94D] text-white font-bold text-sm py-4 disabled:opacity-40 disabled:cursor-not-allowed">

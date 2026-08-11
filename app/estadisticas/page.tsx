@@ -1,29 +1,13 @@
 'use client'
 
-import { useFullStats } from '@/hooks/useFullStats'
+import { useState } from 'react'
+import { useEstadisticasStats, Period } from '@/hooks/useEstadisticasStats'
+import { formatBetType, formatSport } from '@/lib/utils'
+import { InfoTooltip } from '@/components/InfoTooltip'
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
   return sign + value.toFixed(2) + 'u'
-}
-
-const sportLabel: Record<string, string> = {
-  FOOTBALL: 'Futbol',
-  TENNIS: 'Tenis',
-  BASKETBALL: 'Basquet',
-}
-
-const typeLabel: Record<string, string> = {
-  SINGLE: 'Simple',
-  DOUBLE: 'Doble',
-  TRIPLE: 'Triple',
-  '4X': '4 Vias',
-  '5X': '5 Vias',
-  '6X': '6 Vias',
-  '7X': '7 Vias',
-  '8X': '8 Vias',
-  '9X': '9 Vias',
-  '10X': '10 Vias',
 }
 
 const timingLabel: Record<string, string> = {
@@ -36,8 +20,18 @@ const analysisLabel: Record<string, string> = {
   MANUAL: 'Manual',
 }
 
+const periodOptions: { key: Period; label: string }[] = [
+  { key: 'TODAY', label: 'Hoy' },
+  { key: 'YESTERDAY', label: 'Ayer' },
+  { key: '7D', label: '7 dias' },
+  { key: '30D', label: '30 dias' },
+  { key: '60D', label: '60 dias' },
+  { key: 'ALL', label: 'Todo' },
+]
+
 export default function EstadisticasPage() {
-  const { general, bySport, byType, byTiming, byAnalysis, loading } = useFullStats()
+  const [period, setPeriod] = useState<Period>('ALL')
+  const { general, bySport, byType, byTiming, byAnalysis, loading } = useEstadisticasStats(period)
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
@@ -49,37 +43,51 @@ export default function EstadisticasPage() {
       </header>
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-8">
-        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1F2937] mb-8">Estadisticas</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1F2937] mb-6">Estadisticas</h1>
 
-        {loading && <p className="text-sm text-[#4B5563]">Cargando...</p>}
+        <div className="flex flex-wrap gap-1.5 mb-6">
+          {periodOptions.map(function (p) {
+            const active = period === p.key
+            const cls = active ? 'bg-[#1F2937] text-white' : 'bg-white text-[#1F2937] border border-black/20'
+            return (
+              <button key={p.key} onClick={function () { setPeriod(p.key) }} className={'rounded-full text-xs font-semibold px-3 py-1.5 ' + cls}>{p.label}</button>
+            )
+          })}
+        </div>
+
+        {loading && <p className="text-sm text-[#4B5563] mb-8">Cargando...</p>}
 
         {!loading && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-[#FFA94D] mb-4">Rendimiento general</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-[#FFA94D] mb-4">Rendimiento</p>
 
-            <div className="grid grid-cols-2 gap-3 mb-8">
+            <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="rounded-2xl border border-black/15 bg-white p-4">
                 <p className="font-display text-2xl font-extrabold text-[#1F2937]">{general.total_bets}</p>
                 <p className="text-xs text-[#4B5563] mt-1">Pronosticos</p>
               </div>
               <div className="rounded-2xl border border-black/15 bg-white p-4">
-                <p className="font-display text-2xl font-extrabold text-[#1F2937]">{general.average_odds}</p>
-                <p className="text-xs text-[#4B5563] mt-1">Cuota media</p>
-              </div>
-              <div className="rounded-2xl border border-black/15 bg-white p-4">
                 <p className="font-display text-2xl font-extrabold text-[#10B981]">{general.win_rate}%</p>
-                <p className="text-xs text-[#4B5563] mt-1">Win Rate</p>
+                <p className="text-xs text-[#4B5563] mt-1 flex items-center">Win Rate <InfoTooltip text="Porcentaje de pronosticos ganados o parcialmente ganados sobre el total." /></p>
               </div>
               <div className="rounded-2xl border border-black/15 bg-white p-4">
                 <p className="font-display text-2xl font-extrabold text-[#1F2937]">{general.roi}%</p>
-                <p className="text-xs text-[#4B5563] mt-1">ROI</p>
+                <p className="text-xs text-[#4B5563] mt-1 flex items-center">ROI <InfoTooltip text="Cuanto se gana en promedio por cada unidad apostada. Un ROI de 20% significa 0.20u de ganancia por cada 1u apostada." /></p>
+              </div>
+              <div className="rounded-2xl border border-black/15 bg-white p-4">
+                <p className="font-display text-2xl font-extrabold" style={{ color: general.total_profit >= 0 ? '#10B981' : '#FF7A8C' }}>{formatUnits(general.total_profit)}</p>
+                <p className="text-xs text-[#4B5563] mt-1">Profit</p>
               </div>
             </div>
 
-            <div className="rounded-3xl overflow-hidden mb-10" style={{ backgroundColor: '#1F2937' }}>
-              <div className="p-6 text-center">
-                <p className="text-xs uppercase tracking-wider text-white/50 mb-2">Profit historico acumulado</p>
-                <p className="font-display text-4xl font-extrabold text-[#FFA94D]">{formatUnits(general.total_profit)}</p>
+            <div className="grid grid-cols-2 gap-3 mb-10">
+              <div className="rounded-2xl border border-black/15 bg-white p-4">
+                <p className="font-display text-xl font-extrabold text-[#FF7A8C]">{general.max_drawdown > 0 ? '-' + general.max_drawdown.toFixed(2) + 'u' : '0.00u'}</p>
+                <p className="text-xs text-[#4B5563] mt-1 flex items-center">Max. drawdown <InfoTooltip text="La peor racha de perdidas acumuladas, medida desde el punto mas alto hasta el mas bajo. Indica el riesgo real de seguir al tipster." /></p>
+              </div>
+              <div className="rounded-2xl border border-black/15 bg-white p-4">
+                <p className="font-display text-xl font-extrabold text-[#1F2937]">{general.profit_factor !== null ? general.profit_factor.toFixed(2) : '-'}</p>
+                <p className="text-xs text-[#4B5563] mt-1 flex items-center">Profit factor <InfoTooltip text="Cuanto se gana por cada unidad que se pierde. Mayor a 1 significa que las ganancias superan a las perdidas." /></p>
               </div>
             </div>
 
@@ -94,7 +102,7 @@ export default function EstadisticasPage() {
             {bySport.length > 0 && (
               <div className="space-y-3 mb-10">
                 {bySport.map(function (s) {
-                  const label = sportLabel[s.sport] || s.sport
+                  const label = formatSport(s.sport)
                   return (
                     <div key={s.sport} className="flex items-center justify-between rounded-2xl border border-black/15 bg-white p-4">
                       <div>
@@ -117,7 +125,7 @@ export default function EstadisticasPage() {
             {byType.length > 0 && (
               <div className="space-y-3 mb-10">
                 {byType.map(function (t) {
-                  const label = typeLabel[t.type] || t.type
+                  const label = formatBetType(t.type)
                   return (
                     <div key={t.type} className="flex items-center justify-between rounded-2xl border border-black/15 bg-white p-4">
                       <div>

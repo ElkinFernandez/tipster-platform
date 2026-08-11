@@ -3,23 +3,13 @@
 import { useTipster } from '@/hooks/useTipster'
 import { useHomeStats } from '@/hooks/useStats'
 import { useProfitEvolution } from '@/hooks/useProfitEvolution'
+import { usePublicPendingBets } from '@/hooks/usePublicPendingBets'
+import { formatBetType, getStatusColor, formatDate } from '@/lib/utils'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
   return sign + value.toFixed(2) + 'u'
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-}
-
-const statusColor: Record<string, string> = {
-  WIN: '#10B981',
-  PARTIAL_WIN: '#10B981',
-  LOSS: '#FF7A8C',
-  VOID: '#9CA3AF',
 }
 
 interface TooltipProps {
@@ -46,11 +36,13 @@ export default function HomePage() {
   const { tipster, loading: loadingTipster } = useTipster()
   const { stats, recentBets, loading: loadingStats } = useHomeStats()
   const { points, loading: loadingChart } = useProfitEvolution()
+  const { bets: pendingBets, loading: loadingPending } = usePublicPendingBets()
 
   const displayName = tipster?.name || 'Tipster'
   const hasData = stats.total_bets > 0
   const telegramUrl = tipster?.telegram_url || '#'
   const chartColor = stats.total_profit >= 0 ? '#10B981' : '#FF7A8C'
+  const hasPending = !loadingPending && pendingBets.length > 0
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
@@ -105,6 +97,41 @@ export default function HomePage() {
             <a href="/estadisticas" className="rounded-2xl bg-[#FFA94D] text-white font-bold text-sm py-3 px-6 text-center hover:bg-[#FF9933] transition">Ver estadisticas completas</a>
             <a href="/resultados" className="rounded-2xl border border-black/20 text-[#1F2937] font-bold text-sm py-3 px-6 text-center hover:bg-white transition">Ver ultimos pronosticos</a>
           </div>
+        </section>
+
+        <section className="py-10 border-t border-black/10">
+          <p className="text-xs font-bold uppercase tracking-wider text-[#FFA94D] mb-1">Pronosticos en juego</p>
+          <h2 className="font-display text-xl font-bold text-[#1F2937] mb-1">
+            {loadingPending ? 'Cargando...' : (hasPending ? pendingBets.length + ' ' + (pendingBets.length === 1 ? 'pronostico esperando resultado' : 'pronosticos esperando resultado') : 'No hay pronosticos en juego')}
+          </h2>
+          <p className="text-sm text-[#4B5563] mb-6">
+            {hasPending ? 'Aun estas a tiempo de verlos antes de que se cierren.' : 'Unete a Telegram para no perderte el proximo pronostico.'}
+          </p>
+
+          {!loadingPending && !hasPending && (
+            <a href={telegramUrl} className="rounded-2xl bg-[#FFA94D] text-white font-bold text-sm py-3 px-6 text-center block hover:bg-[#FF9933] transition">Unirme a Telegram</a>
+          )}
+
+          {hasPending && (
+            <div className="space-y-3">
+              {pendingBets.map(function (bet) {
+                const hasLink = bet.evidence_url
+                const content = (
+                  <div className="rounded-2xl border border-black/15 bg-white p-4 flex items-center justify-between hover:bg-white/60 transition">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#3FA9B7] bg-[#3FA9B7]/15 rounded-full px-2.5 py-1">{formatBetType(bet.type)}</span>
+                      <span className="text-sm font-semibold text-[#1F2937]">Cuota {Number(bet.odds_combined).toFixed(2)}</span>
+                    </div>
+                    {hasLink && <span className="text-xs font-bold text-[#FFA94D]">Ver Pronostico</span>}
+                  </div>
+                )
+                if (hasLink) {
+                  return <a key={bet.id} href={bet.evidence_url as string} target="_blank" rel="noopener noreferrer">{content}</a>
+                }
+                return <div key={bet.id}>{content}</div>
+              })}
+            </div>
+          )}
         </section>
 
         {hasData && (
@@ -185,11 +212,11 @@ export default function HomePage() {
           {!loadingStats && recentBets.length > 0 && (
             <div className="space-y-3">
               {recentBets.map(function (bet) {
-                const color = statusColor[bet.status] || '#1F2937'
+                const color = getStatusColor(bet.status)
                 return (
                   <a key={bet.id} href={'/resultados/' + bet.id} className="rounded-2xl border border-black/15 bg-white p-4 flex items-center justify-between block hover:bg-[#F3F1EA] transition">
                     <div>
-                      <p className="text-xs text-[#4B5563] mb-0.5">{formatDate(bet.created_at)} - {bet.type}</p>
+                      <p className="text-xs text-[#4B5563] mb-0.5">{formatDate(bet.created_at)} - {formatBetType(bet.type)}</p>
                       <p className="text-sm font-semibold text-[#1F2937]">Cuota {Number(bet.odds_combined).toFixed(2)} - Stake {Number(bet.stake).toFixed(1)}u</p>
                     </div>
                     <span className="text-sm font-bold whitespace-nowrap ml-3" style={{ color: color }}>{formatUnits(Number(bet.profit))}</span>

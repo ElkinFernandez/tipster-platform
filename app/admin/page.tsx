@@ -64,14 +64,14 @@ function AdminDashboardContent() {
             <p className="text-xs text-white/80 mt-0.5">Publicar un nuevo pronostico</p>
           </a>
           <a href="/admin/pendientes" className="rounded-2xl border border-black/15 bg-white p-5 block hover:bg-[#F3F1EA] transition">
-            <p className="text-sm font-bold text-[#1F2937]">Apuestas sin resultado {loading ? '' : '(' + pendingCount + ')'}</p>
-            <p className="text-xs text-[#4B5563] mt-0.5">Registrar resultados pendientes</p>
+            <p className="text-sm font-bold text-[#1F2937]">Registrar resultados {loading ? '' : '(' + pendingCount + ')'}</p>
+            <p className="text-xs text-[#4B5563] mt-0.5">Ver lista completa de pendientes</p>
           </a>
         </section>
 
         <a href="/admin/apuestas" className="rounded-2xl border border-black/15 bg-white p-5 block hover:bg-[#F3F1EA] transition">
           <p className="text-sm font-bold text-[#1F2937]">Ver todas las apuestas</p>
-          <p className="text-xs text-[#4B5563] mt-0.5">Editar resultados o eliminar apuestas</p>
+          <p className="text-xs text-[#4B5563] mt-0.5">Historial completo: editar resultados o eliminar</p>
         </a>
 
         <section className="rounded-3xl border border-black/15 bg-white p-6 sm:p-8">
@@ -103,7 +103,7 @@ function AdminDashboardContent() {
 
         {!loading && nextPending && (
           <section className="rounded-3xl border border-black/15 bg-white p-6 sm:p-8">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#4B5563] mb-3">Apuesta sin resultado</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-[#4B5563] mb-3">Acceso rapido: la mas antigua sin registrar</p>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-[#1F2937]">{nextPending.type} - {formatDate(nextPending.created_at)}</p>

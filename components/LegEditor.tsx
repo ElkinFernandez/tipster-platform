@@ -1,7 +1,10 @@
 'use client'
 
-import { useMarkets } from '@/hooks/useMarkets'
-import { useSelections } from '@/hooks/useSelections'
+import { useMarketsCatalog } from '@/hooks/useMarketsCatalog'
+import { useSelectionsCatalog } from '@/hooks/useSelectionsCatalog'
+import { useKnownEntities } from '@/hooks/useKnownEntities'
+import { SmartSelect } from '@/components/SmartSelect'
+import { SmartCreateSelect } from '@/components/SmartCreateSelect'
 import { NewLeg } from '@/hooks/useCreateBet'
 
 const sports = [
@@ -29,68 +32,50 @@ function isDynamicNamePair(name: string): boolean {
 
 export function LegEditor(props: LegEditorProps) {
   const { index, leg, onChange, onChangeMultiple, onRemove, canRemove } = props
-  const { markets: rawMarkets, loading: loadingMarkets } = useMarkets(leg.sport)
-  const { selections, loading: loadingSelections } = useSelections(leg.sport_market_id === 'CUSTOM' ? '' : leg.sport_market_id)
 
-  const markets = rawMarkets.filter(function (m) { return m.market_key.toLowerCase() !== 'otro' })
+  const { markets, loading: loadingMarkets, createMarket } = useMarketsCatalog(leg.sport)
+  const { selections, loading: loadingSelections, createSelection } = useSelectionsCatalog(leg.sport_market_id)
+  const { entities: leagues, loading: loadingLeagues } = useKnownEntities('LEAGUE', leg.sport)
+  const { entities: competitors, loading: loadingCompetitors } = useKnownEntities('COMPETITOR', leg.sport)
 
-  const isCustomMarket = leg.sport_market_id === 'CUSTOM'
-  const selectedMarket = markets.find(function (m) { return m.id === leg.sport_market_id })
-  const isFreeTextSelectionMarket = selectedMarket ? selectedMarket.market_name.toLowerCase().indexOf('anotador') !== -1 : false
-  const hasDynamicNames = selections.some(function (s) { return isDynamicNamePair(s.selection_name) })
+  const isFreeTextSelectionMarket = leg.market_name_text.toLowerCase().indexOf('anotador') !== -1
+  const hasDynamicNames = selections.some(function (s) { return isDynamicNamePair(s.name) })
+
+  const leagueLabel = leg.sport === 'TENNIS' ? 'Torneo' : 'Liga'
+  const leaguePlaceholder = leg.sport === 'TENNIS' ? 'Ej: ATP Madrid' : 'Ej: LaLiga'
+  const leagueNewLabel = leg.sport === 'TENNIS' ? '+ Nuevo torneo' : '+ Nueva liga'
+
+  const competitor1Label = leg.sport === 'TENNIS' ? 'Jugador A' : 'Local'
+  const competitor2Label = leg.sport === 'TENNIS' ? 'Jugador B' : 'Visitante'
+  const competitor1Placeholder = leg.sport === 'TENNIS' ? 'Nombre jugador A' : 'Equipo local'
+  const competitor2Placeholder = leg.sport === 'TENNIS' ? 'Nombre jugador B' : 'Equipo visitante'
 
   function handleSportChange(value: string) {
     onChangeMultiple(index, {
       sport: value,
+      league: '',
+      competitor_1: '',
+      competitor_2: '',
       sport_market_id: '',
       market_selection_id: '',
       market_name_text: '',
       selection_name_text: '',
-      market_custom: '',
-      selection_custom: '',
-      selection_free_text: '',
     })
   }
 
-  function handleMarketChange(value: string) {
-    if (value === 'CUSTOM') {
-      onChangeMultiple(index, {
-        sport_market_id: 'CUSTOM',
-        market_selection_id: '',
-        market_name_text: '',
-        selection_name_text: '',
-        selection_free_text: '',
-      })
-    } else {
-      const found = markets.find(function (m) { return m.id === value })
-      onChangeMultiple(index, {
-        sport_market_id: value,
-        market_selection_id: '',
-        market_name_text: found ? found.market_name : '',
-        selection_name_text: '',
-        market_custom: '',
-        selection_custom: '',
-        selection_free_text: '',
-      })
-    }
+  function handleMarketPick(id: string, name: string) {
+    onChangeMultiple(index, {
+      sport_market_id: id,
+      market_name_text: name,
+      market_selection_id: '',
+      selection_name_text: '',
+    })
   }
 
-  function handleSelectionChange(value: string) {
-    const found = selections.find(function (s) { return s.id === value })
-    let label = found ? found.selection_name : ''
-
-    if (found && isDynamicNamePair(found.selection_name)) {
-      const clean = found.selection_name.trim().toLowerCase()
-      if (clean === 'jugador a') {
-        label = leg.competitor_1 ? leg.competitor_1 : 'Jugador A'
-      } else {
-        label = leg.competitor_2 ? leg.competitor_2 : 'Jugador B'
-      }
-    }
-
+  function handleSelectionPick(id: string, name: string) {
     onChangeMultiple(index, {
-      market_selection_id: value,
-      selection_name_text: label,
+      market_selection_id: id,
+      selection_name_text: name,
     })
   }
 
@@ -101,6 +86,17 @@ export function LegEditor(props: LegEditorProps) {
       selection_name_text: value,
     })
   }
+
+  const displaySelections = selections.map(function (s) {
+    if (isDynamicNamePair(s.name) && hasDynamicNames) {
+      const clean = s.name.trim().toLowerCase()
+      const label = clean === 'jugador a'
+        ? (leg.competitor_1 ? leg.competitor_1 : 'Jugador A')
+        : (leg.competitor_2 ? leg.competitor_2 : 'Jugador B')
+      return { id: s.id, name: label }
+    }
+    return s
+  })
 
   return (
     <section className="rounded-3xl border border-black/15 bg-white p-5">
@@ -119,71 +115,66 @@ export function LegEditor(props: LegEditorProps) {
           </select>
         </div>
 
-        <div>
-          <label className={labelClass}>Liga</label>
-          <input value={leg.league} onChange={function (e) { onChange(index, 'league', e.target.value) }} placeholder="Ej: LaLiga" className={inputClass} />
-        </div>
+        <SmartSelect
+          label={leagueLabel}
+          value={leg.league}
+          onChange={function (v) { onChange(index, 'league', v) }}
+          entities={leagues}
+          loading={loadingLeagues}
+          placeholder={leaguePlaceholder}
+          newLabel={leagueNewLabel}
+        />
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Competidor 1</label>
-            <input value={leg.competitor_1} onChange={function (e) { onChange(index, 'competitor_1', e.target.value) }} placeholder="Equipo/jugador 1" className={inputClass} />
-          </div>
-          <div>
-            <label className={labelClass}>Competidor 2</label>
-            <input value={leg.competitor_2} onChange={function (e) { onChange(index, 'competitor_2', e.target.value) }} placeholder="Equipo/jugador 2" className={inputClass} />
-          </div>
+          <SmartSelect
+            label={competitor1Label}
+            value={leg.competitor_1}
+            onChange={function (v) { onChange(index, 'competitor_1', v) }}
+            entities={competitors}
+            loading={loadingCompetitors}
+            placeholder={competitor1Placeholder}
+            newLabel="+ Nuevo equipo/jugador"
+          />
+          <SmartSelect
+            label={competitor2Label}
+            value={leg.competitor_2}
+            onChange={function (v) { onChange(index, 'competitor_2', v) }}
+            entities={competitors}
+            loading={loadingCompetitors}
+            placeholder={competitor2Placeholder}
+            newLabel="+ Nuevo equipo/jugador"
+          />
         </div>
 
-        <div>
-          <label className={labelClass}>Mercado</label>
-          <select value={leg.sport_market_id} onChange={function (e) { handleMarketChange(e.target.value) }} className={inputClass} disabled={loadingMarkets}>
-            <option value="">-- Selecciona --</option>
-            {markets.map(function (m) { return <option key={m.id} value={m.id}>{m.market_name}</option> })}
-            <option value="CUSTOM">Otro (personalizado)</option>
-          </select>
-        </div>
+        <SmartCreateSelect
+          label="Mercado"
+          selectedId={leg.sport_market_id}
+          selectedName={leg.market_name_text}
+          onPick={handleMarketPick}
+          onCreate={createMarket}
+          items={markets}
+          loading={loadingMarkets}
+          placeholder="Busca o escribe un mercado"
+        />
 
-        {isCustomMarket && (
-          <div>
-            <label className={labelClass}>Mercado personalizado</label>
-            <input value={leg.market_custom} onChange={function (e) { onChange(index, 'market_custom', e.target.value) }} placeholder="Ej: Numero de tarjetas" className={inputClass} />
-          </div>
-        )}
-
-        {!isCustomMarket && leg.sport_market_id && isFreeTextSelectionMarket && (
+        {leg.sport_market_id && isFreeTextSelectionMarket && (
           <div>
             <label className={labelClass}>Jugador que anota</label>
             <input value={leg.selection_free_text} onChange={function (e) { handleFreeTextSelectionChange(e.target.value) }} placeholder="Nombre del jugador" className={inputClass} />
           </div>
         )}
 
-        {!isCustomMarket && leg.sport_market_id && !isFreeTextSelectionMarket && (
-          <div>
-            <label className={labelClass}>Seleccion</label>
-            <select value={leg.market_selection_id} onChange={function (e) { handleSelectionChange(e.target.value) }} className={inputClass} disabled={loadingSelections}>
-              <option value="">-- Selecciona --</option>
-              {selections.map(function (s) {
-                let optionLabel = s.selection_name
-                if (hasDynamicNames && isDynamicNamePair(s.selection_name)) {
-                  const clean = s.selection_name.trim().toLowerCase()
-                  if (clean === 'jugador a') {
-                    optionLabel = leg.competitor_1 ? leg.competitor_1 : 'Jugador A'
-                  } else {
-                    optionLabel = leg.competitor_2 ? leg.competitor_2 : 'Jugador B'
-                  }
-                }
-                return <option key={s.id} value={s.id}>{optionLabel}</option>
-              })}
-            </select>
-          </div>
-        )}
-
-        {isCustomMarket && (
-          <div>
-            <label className={labelClass}>Seleccion personalizada</label>
-            <input value={leg.selection_custom} onChange={function (e) { onChange(index, 'selection_custom', e.target.value) }} placeholder="Ej: Over 5" className={inputClass} />
-          </div>
+        {leg.sport_market_id && !isFreeTextSelectionMarket && (
+          <SmartCreateSelect
+            label="Seleccion"
+            selectedId={leg.market_selection_id}
+            selectedName={leg.selection_name_text}
+            onPick={handleSelectionPick}
+            onCreate={createSelection}
+            items={displaySelections}
+            loading={loadingSelections}
+            placeholder="Busca o escribe una seleccion"
+          />
         )}
 
         <div>

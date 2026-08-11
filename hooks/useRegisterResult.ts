@@ -41,7 +41,8 @@ export function useRegisterResult() {
     legs: { id: string; status: string }[],
     allLegs: BetLeg[],
     originalOdds: number,
-    stake: number
+    stake: number,
+    resultAt: string
   ) {
     setSaving(true)
     setError(null)
@@ -69,6 +70,7 @@ export function useRegisterResult() {
       })
 
       const result = calculateBetResult(updatedLegs, originalOdds, stake)
+      const resultAtISO = new Date(resultAt).toISOString()
 
       const betUpdate = await supabase
         .from('bets')
@@ -76,7 +78,7 @@ export function useRegisterResult() {
           status: result.status,
           odds_combined: result.finalOdds,
           profit: result.profit,
-          result_at: new Date().toISOString(),
+          result_at: resultAtISO,
         })
         .eq('id', betId)
 

@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Bet, BetLeg } from '@/types'
 
-export interface PendingBetWithLegs extends Bet {
-  bet_legs: BetLeg[]
+export interface PublicPendingBet {
+  id: string
+  type: string
+  odds_combined: number
+  evidence_url: string | null
 }
 
-export function usePendingBets() {
-  const [bets, setBets] = useState<PendingBetWithLegs[]>([])
+export function usePublicPendingBets() {
+  const [bets, setBets] = useState<PublicPendingBet[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
 
   useEffect(function () {
     const fetchPending = async function () {
@@ -19,15 +20,15 @@ export function usePendingBets() {
 
         const result = await supabase
           .from('bets')
-          .select('*, bet_legs(*)')
+          .select('id, type, odds_combined, evidence_url')
           .eq('status', 'PENDING')
-          .order('created_at', { ascending: true })
+          .order('created_at', { ascending: false })
 
         if (result.error) throw result.error
 
         setBets(result.data || [])
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Unknown error'))
+        console.error('Error cargando pronosticos en juego:', err)
       } finally {
         setLoading(false)
       }
@@ -36,5 +37,5 @@ export function usePendingBets() {
     fetchPending()
   }, [])
 
-  return { bets, loading, error }
+  return { bets, loading }
 }

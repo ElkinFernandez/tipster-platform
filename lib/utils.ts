@@ -15,25 +15,33 @@ export function formatOdds(value: number): string {
   return value.toFixed(2)
 }
 
+const monthShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+export function formatDateFull(dateString: string): string {
+  const date = new Date(dateString)
+  const day = date.getDate()
+  const month = monthShort[date.getMonth()]
+  const year = date.getFullYear()
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return day + ' ' + month + ' ' + year + ' ' + hours + ':' + minutes
+}
+
 export function formatDate(dateString: string): string {
   const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const day = date.getDate()
+  const month = monthShort[date.getMonth()]
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return day + ' ' + month + ' ' + hours + ':' + minutes
 }
 
 export function formatDateShort(dateString: string): string {
   const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'short',
-  })
+  return date.getDate() + ' ' + monthShort[date.getMonth()]
 }
 
-export function getStatusColor(status: BetStatus): string {
+export function getStatusColor(status: string): string {
   switch (status) {
     case 'WIN':
     case 'PARTIAL_WIN':
@@ -49,39 +57,51 @@ export function getStatusColor(status: BetStatus): string {
   }
 }
 
-export function getStatusLabel(status: BetStatus): string {
-  const labels: Record<BetStatus, string> = {
+export function getStatusAdj(status: string): string {
+  const labels: Record<string, string> = {
     WIN: 'Ganada',
     LOSS: 'Perdida',
-    PARTIAL_WIN: 'Ganancia Parcial',
+    PARTIAL_WIN: 'Ganada Parcial',
     VOID: 'Anulada',
     PENDING: 'Pendiente',
   }
-  return labels[status]
+  return labels[status] || status
 }
 
-export function getTimingLabel(timing: 'LIVE' | 'PRE_MATCH'): string {
+export function getStatusVerb(status: string): string {
+  const labels: Record<string, string> = {
+    WIN: 'Gano',
+    LOSS: 'Perdio',
+    PARTIAL_WIN: 'Gano Parcial',
+    VOID: 'Anulado',
+    PENDING: 'Pendiente',
+  }
+  return labels[status] || status
+}
+
+export function getTimingLabel(timing: string): string {
   return timing === 'LIVE' ? 'En Vivo' : 'Pre-Partido'
 }
 
-export function getAnalysisLabel(analysis: 'SOFTWARE' | 'MANUAL'): string {
+export function getAnalysisLabel(analysis: string): string {
   return analysis === 'SOFTWARE' ? 'Software' : 'Manual'
 }
 
+export const betTypeLabel: Record<string, string> = {
+  SINGLE: 'Sencilla',
+  DOUBLE: 'Doble',
+  TRIPLE: 'Triple',
+  '4X': 'Cuadruple',
+  '5X': 'Quintuple',
+  '6X': 'Sextuple',
+  '7X': 'Septuple',
+  '8X': 'Octuple',
+  '9X': 'Nonuple',
+  '10X': 'Decuple',
+}
+
 export function formatBetType(type: string): string {
-  const typeLabels: Record<string, string> = {
-    SINGLE: 'Simple',
-    DOUBLE: 'Doble',
-    TRIPLE: 'Triple',
-    '4X': '4 Vias',
-    '5X': '5 Vias',
-    '6X': '6 Vias',
-    '7X': '7 Vias',
-    '8X': '8 Vias',
-    '9X': '9 Vias',
-    '10X': '10 Vias',
-  }
-  return typeLabels[type] || type
+  return betTypeLabel[type] || type
 }
 
 export function formatSport(sport: string): string {

@@ -4,31 +4,11 @@ import { useState } from 'react'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAllBetsAdmin } from '@/hooks/useAllBetsAdmin'
 import { useDeleteBet } from '@/hooks/useDeleteBet'
+import { formatBetType, formatDate, getStatusAdj, getStatusColor } from '@/lib/utils'
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
   return sign + value.toFixed(2) + 'u'
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-}
-
-const statusColor: Record<string, string> = {
-  WIN: '#10B981',
-  PARTIAL_WIN: '#10B981',
-  LOSS: '#FF7A8C',
-  VOID: '#9CA3AF',
-  PENDING: '#3FA9B7',
-}
-
-const statusLabel: Record<string, string> = {
-  WIN: 'Gano',
-  PARTIAL_WIN: 'Parcial',
-  LOSS: 'Perdio',
-  VOID: 'Anulado',
-  PENDING: 'Pendiente',
 }
 
 function AllBetsContent() {
@@ -66,8 +46,8 @@ function AllBetsContent() {
         {!loading && bets.length > 0 && (
           <div className="space-y-3">
             {bets.map(function (bet) {
-              const color = statusColor[bet.status] || '#1F2937'
-              const label = statusLabel[bet.status] || bet.status
+              const color = getStatusColor(bet.status)
+              const label = getStatusAdj(bet.status)
               const isConfirming = confirmingId === bet.id
               const canEdit = bet.status !== 'PENDING'
 
@@ -75,7 +55,7 @@ function AllBetsContent() {
                 <div key={bet.id} className="rounded-2xl border border-black/15 bg-white p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#3FA9B7] bg-[#3FA9B7]/15 rounded-full px-2.5 py-1">{bet.type}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#3FA9B7] bg-[#3FA9B7]/15 rounded-full px-2.5 py-1">{formatBetType(bet.type)}</span>
                       <p className="text-sm font-semibold text-[#1F2937] mt-2">{formatDate(bet.created_at)}</p>
                       <p className="text-xs text-[#4B5563]">Cuota {Number(bet.odds_combined).toFixed(2)} - Stake {Number(bet.stake).toFixed(1)}u</p>
                     </div>
