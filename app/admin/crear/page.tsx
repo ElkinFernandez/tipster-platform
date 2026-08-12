@@ -9,10 +9,15 @@ import { LegEditor } from '@/components/LegEditor'
 import { createClient } from '@/lib/supabase/client'
 import { toTitleCase, betTypeLabel } from '@/lib/utils'
 
-const stakes = ['0.5', '1.0', '1.5', '2.0']
+const stakes = ['0.1', '0.25', '0.5', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.5', '5.0', '5.5', '6.0', '6.5', '7.0', '7.5', '8.0', '8.5', '9.0', '9.5', '10.0']
 
 const typeByCount: Record<number, string> = {
   1: 'SINGLE', 2: 'DOUBLE', 3: 'TRIPLE', 4: '4X', 5: '5X', 6: '6X', 7: '7X', 8: '8X', 9: '9X', 10: '10X',
+}
+
+function isTournamentLevelMarket(marketName: string): boolean {
+  const clean = marketName.toLowerCase()
+  return clean.indexOf('ganador del torneo') !== -1 || clean.indexOf('goleador del torneo') !== -1
 }
 
 function nowForInput(): string {
@@ -119,9 +124,16 @@ function CrearApuestaContent() {
 
     if (result.success) {
       for (const leg of legs) {
+        const isTournament = isTournamentLevelMarket(leg.market_name_text)
+        if (!isTournament) {
+          await registerNewEntity('COMPETITOR', leg.sport, leg.competitor_1)
+          await registerNewEntity('COMPETITOR', leg.sport, leg.competitor_2)
+        }
         await registerNewEntity('LEAGUE', leg.sport, leg.league)
-        await registerNewEntity('COMPETITOR', leg.sport, leg.competitor_1)
-        await registerNewEntity('COMPETITOR', leg.sport, leg.competitor_2)
+
+        if (isTournament && leg.selection_free_text) {
+          await registerNewEntity('COMPETITOR', leg.sport, leg.selection_free_text)
+        }
       }
 
       setSuccessMsg(true)
@@ -137,7 +149,8 @@ function CrearApuestaContent() {
   }
 
   const isValid = legs.every(function (leg) {
-    const hasBasics = leg.league && leg.competitor_1 && leg.competitor_2 && leg.odds
+    const isTournament = isTournamentLevelMarket(leg.market_name_text)
+    const hasBasics = leg.league && leg.odds && (isTournament || (leg.competitor_1 && leg.competitor_2))
     const hasMarket = leg.sport_market_id ? true : false
 
     if (leg.market_selection_id === 'FREE_TEXT') {
@@ -182,14 +195,16 @@ function CrearApuestaContent() {
         </section>
 
         <section className="rounded-3xl border border-black/15 bg-white p-5">
-          <p className={labelClass}>Fecha y hora del pronostico</p>
+          <p className={labelClass}>Fecha y hora de publicacion en Telegram</p>
           <input
             type="datetime-local"
             value={createdAt}
             onChange={function (e) { setCreatedAt(e.target.value) }}
             className={inputClass}
           />
-          <p className="text-xs text-[#4B5563] mt-2">Por defecto es ahora. Cambiala solo si estas cargando un pronostico de una fecha anterior.</p>
+          <p className="text-xs text-[#4B5563] mt-2">
+            Escribe la hora exacta que ves en tu propio reloj/Telegram, sin convertir nada.
+          </p>
         </section>
 
         <section className="rounded-3xl border border-black/15 bg-white p-5">

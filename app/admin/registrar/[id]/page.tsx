@@ -20,6 +20,11 @@ function nowForInput(): string {
   return local.toISOString().slice(0, 16)
 }
 
+function isTournamentLevelMarket(marketName: string): boolean {
+  const clean = (marketName || '').toLowerCase()
+  return clean.indexOf('ganador del torneo') !== -1 || clean.indexOf('goleador del torneo') !== -1
+}
+
 function RegistrarContent() {
   const params = useParams()
   const router = useRouter()
@@ -121,17 +126,25 @@ function RegistrarContent() {
                 onChange={function (e) { setResultAt(e.target.value) }}
                 className={inputClass}
               />
-              <p className="text-xs text-[#4B5563] mt-2">Por defecto es ahora. Cambiala si estas registrando un resultado de una fecha anterior.</p>
+              <p className="text-xs text-[#4B5563] mt-2">
+                Escribe la hora exacta que ves en tu propio reloj, sin convertir nada.
+              </p>
             </section>
 
             <div className="space-y-3 mb-4">
               {legs.map(function (leg) {
                 const currentStatus = legStatuses[leg.id] || 'WIN'
                 const sport = formatSport(leg.sport)
+                const isTournament = isTournamentLevelMarket(leg.market)
                 return (
                   <section key={leg.id} className="rounded-3xl border border-black/15 bg-white p-5">
                     <span className="text-[10px] font-bold uppercase tracking-wide text-[#3FA9B7] bg-[#3FA9B7]/15 rounded-full px-2.5 py-1">{sport} - {leg.league}</span>
-                    <p className="text-sm font-semibold text-[#1F2937] mt-2 mb-1">{leg.competitor_1} vs {leg.competitor_2}</p>
+                    {isTournament && (
+                      <p className="text-sm font-semibold text-[#1F2937] mt-2 mb-1">{leg.league}</p>
+                    )}
+                    {!isTournament && (
+                      <p className="text-sm font-semibold text-[#1F2937] mt-2 mb-1">{leg.competitor_1} vs {leg.competitor_2}</p>
+                    )}
                     <p className="text-xs text-[#4B5563] mb-4">{leg.market}: {leg.selection} - Cuota {Number(leg.odds).toFixed(2)}</p>
 
                     <div className="grid grid-cols-3 gap-2">

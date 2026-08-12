@@ -1,4 +1,4 @@
-'use client'
+  'use client'
 
 import { useMarketsCatalog } from '@/hooks/useMarketsCatalog'
 import { useSelectionsCatalog } from '@/hooks/useSelectionsCatalog'
@@ -30,6 +30,11 @@ function isDynamicNamePair(name: string): boolean {
   return clean === 'jugador a' || clean === 'jugador b'
 }
 
+function isTournamentLevelMarket(marketName: string): boolean {
+  const clean = marketName.toLowerCase()
+  return clean.indexOf('ganador del torneo') !== -1 || clean.indexOf('goleador del torneo') !== -1
+}
+
 export function LegEditor(props: LegEditorProps) {
   const { index, leg, onChange, onChangeMultiple, onRemove, canRemove } = props
 
@@ -38,7 +43,9 @@ export function LegEditor(props: LegEditorProps) {
   const { entities: leagues, loading: loadingLeagues } = useKnownEntities('LEAGUE', leg.sport)
   const { entities: competitors, loading: loadingCompetitors } = useKnownEntities('COMPETITOR', leg.sport)
 
-  const isFreeTextSelectionMarket = leg.market_name_text.toLowerCase().indexOf('anotador') !== -1
+  const marketNameLower = leg.market_name_text.toLowerCase()
+  const isFreeTextSelectionMarket = marketNameLower.indexOf('anotador') !== -1 && marketNameLower.indexOf('goleador del torneo') === -1
+  const isTournamentMarket = isTournamentLevelMarket(leg.market_name_text)
   const hasDynamicNames = selections.some(function (s) { return isDynamicNamePair(s.name) })
 
   const leagueLabel = leg.sport === 'TENNIS' ? 'Torneo' : 'Liga'
@@ -60,16 +67,25 @@ export function LegEditor(props: LegEditorProps) {
       market_selection_id: '',
       market_name_text: '',
       selection_name_text: '',
+      market_custom: '',
+      selection_custom: '',
+      selection_free_text: '',
     })
   }
 
   function handleMarketPick(id: string, name: string) {
-    onChangeMultiple(index, {
+    const changes: Partial<NewLeg> = {
       sport_market_id: id,
       market_name_text: name,
       market_selection_id: '',
       selection_name_text: '',
-    })
+      selection_free_text: '',
+    }
+    if (isTournamentLevelMarket(name)) {
+      changes.competitor_1 = 'N/A'
+      changes.competitor_2 = 'N/A'
+    }
+    onChangeMultiple(index, changes)
   }
 
   function handleSelectionPick(id: string, name: string) {
@@ -125,26 +141,28 @@ export function LegEditor(props: LegEditorProps) {
           newLabel={leagueNewLabel}
         />
 
-        <div className="grid grid-cols-2 gap-3">
-          <SmartSelect
-            label={competitor1Label}
-            value={leg.competitor_1}
-            onChange={function (v) { onChange(index, 'competitor_1', v) }}
-            entities={competitors}
-            loading={loadingCompetitors}
-            placeholder={competitor1Placeholder}
-            newLabel="+ Nuevo equipo/jugador"
-          />
-          <SmartSelect
-            label={competitor2Label}
-            value={leg.competitor_2}
-            onChange={function (v) { onChange(index, 'competitor_2', v) }}
-            entities={competitors}
-            loading={loadingCompetitors}
-            placeholder={competitor2Placeholder}
-            newLabel="+ Nuevo equipo/jugador"
-          />
-        </div>
+        {!isTournamentMarket && (
+          <div className="grid grid-cols-2 gap-3">
+            <SmartSelect
+              label={competitor1Label}
+              value={leg.competitor_1}
+              onChange={function (v) { onChange(index, 'competitor_1', v) }}
+              entities={competitors}
+              loading={loadingCompetitors}
+              placeholder={competitor1Placeholder}
+              newLabel="+ Nuevo equipo/jugador"
+            />
+            <SmartSelect
+              label={competitor2Label}
+              value={leg.competitor_2}
+              onChange={function (v) { onChange(index, 'competitor_2', v) }}
+              entities={competitors}
+              loading={loadingCompetitors}
+              placeholder={competitor2Placeholder}
+              newLabel="+ Nuevo equipo/jugador"
+            />
+          </div>
+        )}
 
         <SmartCreateSelect
           label="Mercado"
@@ -164,7 +182,19 @@ export function LegEditor(props: LegEditorProps) {
           </div>
         )}
 
-        {leg.sport_market_id && !isFreeTextSelectionMarket && (
+        {leg.sport_market_id && isTournamentMarket && (
+          <SmartSelect
+            label="Equipo/Jugador"
+            value={leg.selection_free_text}
+            onChange={function (v) { handleFreeTextSelectionChange(v) }}
+            entities={competitors}
+            loading={loadingCompetitors}
+            placeholder="Busca o escribe el nombre"
+            newLabel="+ Nuevo equipo/jugador"
+          />
+        )}
+
+        {leg.sport_market_id && !isFreeTextSelectionMarket && !isTournamentMarket && (
           <SmartCreateSelect
             label="Seleccion"
             selectedId={leg.market_selection_id}

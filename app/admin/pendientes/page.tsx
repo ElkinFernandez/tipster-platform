@@ -4,6 +4,11 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { usePendingBets } from '@/hooks/usePendingBets'
 import { formatBetType, formatDate } from '@/lib/utils'
 
+function isTournamentLevelMarket(marketName: string): boolean {
+  const clean = (marketName || '').toLowerCase()
+  return clean.indexOf('ganador del torneo') !== -1 || clean.indexOf('goleador del torneo') !== -1
+}
+
 function PendientesContent() {
   const { bets, loading } = usePendingBets()
 
@@ -31,17 +36,24 @@ function PendientesContent() {
             <p className="text-sm font-semibold text-[#4B5563] mb-4">{bets.length} apuestas esperando resultado</p>
             <div className="space-y-3">
               {bets.map(function (bet) {
-                const url = '/admin/registrar/' + bet.id
                 const legs = bet.bet_legs || []
                 return (
-                  <a key={bet.id} href={url} className="block rounded-2xl border border-black/15 bg-white p-4 hover:bg-[#F3F1EA] transition">
+                  <div key={bet.id} className="rounded-2xl border border-black/15 bg-white p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[10px] font-bold uppercase tracking-wide text-[#3FA9B7] bg-[#3FA9B7]/15 rounded-full px-2.5 py-1">{formatBetType(bet.type)}</span>
-                      <span className="text-sm font-bold text-[#FFA94D]">Registrar</span>
                     </div>
 
                     <div className="space-y-1.5 mb-3">
                       {legs.map(function (leg) {
+                        const isTournament = isTournamentLevelMarket(leg.market)
+                        if (isTournament) {
+                          return (
+                            <p key={leg.id} className="text-sm font-semibold text-[#1F2937]">
+                              {leg.league}
+                              <span className="text-xs font-normal text-[#4B5563]"> - {leg.market}: {leg.selection}</span>
+                            </p>
+                          )
+                        }
                         return (
                           <p key={leg.id} className="text-sm font-semibold text-[#1F2937]">
                             {leg.competitor_1} vs {leg.competitor_2}
@@ -51,8 +63,13 @@ function PendientesContent() {
                       })}
                     </div>
 
-                    <p className="text-xs text-[#4B5563]">{formatDate(bet.created_at)} - Cuota {Number(bet.odds_combined).toFixed(2)} - Stake {Number(bet.stake).toFixed(1)}u</p>
-                  </a>
+                    <p className="text-xs text-[#4B5563] mb-3">{formatDate(bet.created_at)} - Cuota {Number(bet.odds_combined).toFixed(2)} - Stake {Number(bet.stake).toFixed(1)}u</p>
+
+                    <div className="flex gap-2 pt-3 border-t border-black/10">
+                      <a href={'/admin/editar/' + bet.id} className="flex-1 text-center rounded-xl border border-black/15 text-xs font-bold text-[#1F2937] py-2">Editar</a>
+                      <a href={'/admin/registrar/' + bet.id} className="flex-1 text-center rounded-xl bg-[#FFA94D] text-xs font-bold text-white py-2">Registrar</a>
+                    </div>
+                  </div>
                 )
               })}
             </div>

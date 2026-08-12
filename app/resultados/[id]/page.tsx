@@ -10,6 +10,11 @@ function formatUnits(value: number): string {
   return sign + value.toFixed(2) + 'u'
 }
 
+function isTournamentLevelMarket(marketName: string): boolean {
+  const clean = (marketName || '').toLowerCase()
+  return clean.indexOf('ganador del torneo') !== -1 || clean.indexOf('goleador del torneo') !== -1
+}
+
 export default function DetalleApuestaPage() {
   const params = useParams()
   const betId = String(params.id)
@@ -68,13 +73,19 @@ export default function DetalleApuestaPage() {
                 const color = getStatusColor(leg.status)
                 const label = getStatusVerb(leg.status)
                 const sport = formatSport(leg.sport)
+                const isTournament = isTournamentLevelMarket(leg.market)
                 return (
                   <div key={leg.id} className="rounded-2xl border border-black/15 bg-white p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[10px] font-bold uppercase tracking-wide text-[#3FA9B7] bg-[#3FA9B7]/15 rounded-full px-2.5 py-1">{sport} - {leg.league}</span>
                       <span className="text-xs font-bold" style={{ color: color }}>{label}</span>
                     </div>
-                    <p className="text-sm font-semibold text-[#1F2937] mb-1">{leg.competitor_1} vs {leg.competitor_2}</p>
+                    {isTournament && (
+                      <p className="text-sm font-semibold text-[#1F2937] mb-1">{leg.league}</p>
+                    )}
+                    {!isTournament && (
+                      <p className="text-sm font-semibold text-[#1F2937] mb-1">{leg.competitor_1} vs {leg.competitor_2}</p>
+                    )}
                     <p className="text-xs text-[#4B5563]">{leg.market}: {leg.selection} - Cuota {Number(leg.odds).toFixed(2)}</p>
                   </div>
                 )
