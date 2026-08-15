@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useEstadisticasStats, Period } from '@/hooks/useEstadisticasStats'
-import { formatBetType, formatSport } from '@/lib/utils'
+import { useState, useMemo } from 'react'
+import { useBetsFullData } from '@/hooks/useBetsFullData'
 import { InfoTooltip } from '@/components/InfoTooltip'
 
 function formatUnits(value: number): string {
@@ -10,180 +9,169 @@ function formatUnits(value: number): string {
   return sign + value.toFixed(2) + 'u'
 }
 
-const timingLabel: Record<string, string> = {
-  LIVE: 'En vivo',
-  PRE_MATCH: 'Pre-partido',
+function startOfWeek(d: Date) {
+  const date = new Date(d)
+  const day = date.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  date.setDate(date.getDate() + diff)
+  date.setHours(0, 0, 0, 0)
+  return date
 }
 
-const analysisLabel: Record<string, string> = {
-  SOFTWARE: 'Software',
-  MANUAL: 'Manual',
-}
+const sportOptions = [
+  { key: 'TENNIS', label: 'Tenis' },
+  { key: 'FOOTBALL', label: 'Futbol' },
+  { key: 'BASKETBALL', label: 'Basquet' },
+  { key: 'ALL', label: 'Todos' },
+]
 
-const periodOptions: { key: Period; label: string }[] = [
+const periodOptions = [
   { key: 'TODAY', label: 'Hoy' },
   { key: 'YESTERDAY', label: 'Ayer' },
-  { key: '7D', label: '7 dias' },
-  { key: '30D', label: '30 dias' },
-  { key: '60D', label: '60 dias' },
+  { key: 'WEEK', label: 'Esta semana' },
+  { key: 'MONTH', label: 'Este mes' },
+  { key: 'LAST_MONTH', label: 'Mes pasado' },
+  { key: 'YEAR', label: 'Este año' },
   { key: 'ALL', label: 'Todo' },
 ]
 
 export default function EstadisticasPage() {
-  const [period, setPeriod] = useState<Period>('ALL')
-  const { general, bySport, byType, byTiming, byAnalysis, loading } = useEstadisticasStats(period)
+  const { bets, loading } = useBetsFullData()
+  const [sport, setSport] = useState('TENNIS')
+  const [period, setPeriod] = useState('WEEK')
+
+  const filtered = useMemo(function () {
+    let list = bets
+    if (sport !== 'ALL') {
+      list = list.filter(function (b) { return (b.bet_legs || []).some(function (l) { return l.sport === sport }) })
+    }
+
+    const now = new Date()
+    if (period === 'TODAY') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      list = list.filter(function (b) { return b.result_at && new Date(b.result_at) >= start })
+    } else if (period === 'YESTERDAY') {
+      const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const startYesterday = new Date(startToday.getTime() - 86400000)
+      list = list.filter(function (b) { return b.result_at && new Date(b.result_at) >= startYesterday && new Date(b.result_at) < startToday })
+    } else if (period === 'WEEK') {
+      const start = startOfWeek(now)
+      list = list.filter(function (b) { return b.result_at && new Date(b.result_at) >= start })
+    } else if (period === 'MONTH') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+      list = list.filter(function (b) { return b.result_at && new Date(b.result_at) >= start })
+    } else if (period === 'LAST_MONTH') {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const end = new Date(now.getFullYear(), now.getMonth(), 1)
+      list = list.filter(function (b) { return b.result_at && new Date(b.result_at) >= start && new Date(b.result_at) < end })
+    } else if (period === 'YEAR') {
+      const start = new Date(now.getFullYear(), 0, 1)
+      list = list.filter(function (b) { return b.result_at && new Date(b.result_at) >= start })
+    }
+
+    return list
+  }, [bets, sport, period])
+
+  const stats = useMemo(function () {
+    const total = filtered.length
+    const won = filtered.filter(function (b) { return b.status === 'WIN' || b.status === 'PARTIAL_WIN' }).length
+    const winRate = total > 0 ? (won / total) * 100 : 0
+    const totalProfit = filtered.reduce(function (s, b) { return s + Number(b.profit || 0) }, 0)
+    const totalStake = filtered.reduce(function (s, b) { return s + Number(b.stake || 0) }, 0)
+    const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0
+
+    const sorted = filtered.slice().sort(function (a, b) { return new Date(a.result_at || a.created_at).getTime() - new Date(b.result_at || b.created_at).getTime() })
+    let running = 0, peak = 0, maxDrawdown = 0
+    sorted.forEach(function (b) {
+      running += Number(b.profit || 0)
+      if (running > peak) peak = running
+      const dd = peak - running
+      if (dd > maxDrawdown) maxDrawdown = dd
+    })
+
+    const totalWon = filtered.reduce(function (s, b) { return Number(b.profit || 0) > 0 ? s + Number(b.profit) : s }, 0)
+    const totalLost = filtered.reduce(function (s, b) { return Number(b.profit || 0) < 0 ? s + Math.abs(Number(b.profit)) : s }, 0)
+    const profitFactor = totalLost > 0 ? totalWon / totalLost : null
+
+    return {
+      total: total,
+      winRate: Math.round(winRate * 10) / 10,
+      roi: Math.round(roi * 10) / 10,
+      profit: Math.round(totalProfit * 100) / 100,
+      maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+      profitFactor: profitFactor !== null ? Math.round(profitFactor * 100) / 100 : null,
+    }
+  }, [filtered])
+
+  const historicProfit = useMemo(function () {
+    let list = bets
+    if (sport !== 'ALL') list = list.filter(function (b) { return (b.bet_legs || []).some(function (l) { return l.sport === sport }) })
+    return list.reduce(function (s, b) { return s + Number(b.profit || 0) }, 0)
+  }, [bets, sport])
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
-          <a href="/" className="font-display font-bold tracking-wide text-sm sm:text-base">TIPSTER PLATFORM</a>
+          <a href="/" className="font-display font-bold tracking-wide text-sm">RAGUX</a>
           <span className="text-xs text-white/50">EST. 2025</span>
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-8">
-        <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#1F2937] mb-6">Estadisticas</h1>
+      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-5">
+        <h1 className="font-display text-xl font-extrabold text-[#1F2937] mb-4">Estadisticas</h1>
 
-        <div className="flex flex-wrap gap-1.5 mb-6">
-          {periodOptions.map(function (p) {
-            const active = period === p.key
-            const cls = active ? 'bg-[#1F2937] text-white' : 'bg-white text-[#1F2937] border border-black/20'
-            return (
-              <button key={p.key} onClick={function () { setPeriod(p.key) }} className={'rounded-full text-xs font-semibold px-3 py-1.5 ' + cls}>{p.label}</button>
-            )
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[#4B5563] mb-2">Deporte</p>
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {sportOptions.map(function (s) {
+            const active = sport === s.key
+            return <button key={s.key} onClick={function () { setSport(s.key) }} className={'rounded-full text-[11.5px] font-bold px-3 py-1.5 border-2 ' + (active ? 'bg-[#3FA9B7] text-white border-[#3FA9B7]' : 'bg-white text-[#1F2937] border-[#3FA9B7]/40')}>{s.label}</button>
           })}
         </div>
 
-        {loading && <p className="text-sm text-[#4B5563] mb-8">Cargando...</p>}
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[#4B5563] mb-2">Periodo</p>
+        <div className="flex flex-wrap gap-1.5 mb-5">
+          {periodOptions.map(function (p) {
+            const active = period === p.key
+            return <button key={p.key} onClick={function () { setPeriod(p.key) }} className={'rounded-full text-[11.5px] font-bold px-3 py-1.5 border-2 ' + (active ? 'bg-[#1F2937] text-white border-[#1F2937]' : 'bg-white text-[#1F2937] border-black/15')}>{p.label}</button>
+          })}
+        </div>
+
+        {loading && <p className="text-sm text-[#4B5563]">Cargando...</p>}
 
         {!loading && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-[#FFA94D] mb-4">Rendimiento</p>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="rounded-2xl border border-black/15 bg-white p-4">
-                <p className="font-display text-2xl font-extrabold text-[#1F2937]">{general.total_bets}</p>
-                <p className="text-xs text-[#4B5563] mt-1">Pronosticos</p>
+            <div className="grid grid-cols-2 gap-2.5 mb-5">
+              <div className="rounded-2xl border-1.5 border-black/15 bg-white p-3.5">
+                <p className="font-display text-xl font-extrabold text-[#1F2937]">{stats.total}</p>
+                <p className="text-[10px] text-[#4B5563] font-bold">Pronosticos</p>
               </div>
-              <div className="rounded-2xl border border-black/15 bg-white p-4">
-                <p className="font-display text-2xl font-extrabold text-[#10B981]">{general.win_rate}%</p>
-                <p className="text-xs text-[#4B5563] mt-1 flex items-center">Win Rate <InfoTooltip text="Porcentaje de pronosticos ganados o parcialmente ganados sobre el total." /></p>
+              <div className="rounded-2xl border-1.5 border-black/15 bg-white p-3.5">
+                <p className="font-display text-xl font-extrabold text-[#17C971]">{stats.winRate}%</p>
+                <p className="text-[10px] text-[#4B5563] font-bold flex items-center gap-1">Win Rate <InfoTooltip text="Porcentaje de pronosticos ganados o parcialmente ganados." /></p>
               </div>
-              <div className="rounded-2xl border border-black/15 bg-white p-4">
-                <p className="font-display text-2xl font-extrabold text-[#1F2937]">{general.roi}%</p>
-                <p className="text-xs text-[#4B5563] mt-1 flex items-center">ROI <InfoTooltip text="Cuanto se gana en promedio por cada unidad apostada. Un ROI de 20% significa 0.20u de ganancia por cada 1u apostada." /></p>
+              <div className="rounded-2xl border-1.5 border-black/15 bg-white p-3.5">
+                <p className="font-display text-xl font-extrabold" style={{ color: stats.roi >= 0 ? '#17C971' : '#E23A52' }}>{stats.roi}%</p>
+                <p className="text-[10px] text-[#4B5563] font-bold flex items-center gap-1">ROI <InfoTooltip text="Ganancia promedio por cada unidad apostada." /></p>
               </div>
-              <div className="rounded-2xl border border-black/15 bg-white p-4">
-                <p className="font-display text-2xl font-extrabold" style={{ color: general.total_profit >= 0 ? '#10B981' : '#FF7A8C' }}>{formatUnits(general.total_profit)}</p>
-                <p className="text-xs text-[#4B5563] mt-1">Profit</p>
+              <div className="rounded-2xl border-1.5 border-black/15 bg-white p-3.5">
+                <p className="font-display text-xl font-extrabold" style={{ color: stats.profit >= 0 ? '#17C971' : '#E23A52' }}>{formatUnits(stats.profit)}</p>
+                <p className="text-[10px] text-[#4B5563] font-bold">Profit</p>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-10">
-              <div className="rounded-2xl border border-black/15 bg-white p-4">
-                <p className="font-display text-xl font-extrabold text-[#FF7A8C]">{general.max_drawdown > 0 ? '-' + general.max_drawdown.toFixed(2) + 'u' : '0.00u'}</p>
-                <p className="text-xs text-[#4B5563] mt-1 flex items-center">Max. drawdown <InfoTooltip text="La peor racha de perdidas acumuladas, medida desde el punto mas alto hasta el mas bajo. Indica el riesgo real de seguir al tipster." /></p>
+              <div className="rounded-2xl border-1.5 border-black/15 bg-white p-3.5">
+                <p className="font-display text-xl font-extrabold text-[#E23A52]">{stats.maxDrawdown > 0 ? '-' + stats.maxDrawdown.toFixed(2) + 'u' : '0.00u'}</p>
+                <p className="text-[10px] text-[#4B5563] font-bold flex items-center gap-1">Max drawdown <InfoTooltip text="La peor caida de profit acumulado desde su punto mas alto." /></p>
               </div>
-              <div className="rounded-2xl border border-black/15 bg-white p-4">
-                <p className="font-display text-xl font-extrabold text-[#1F2937]">{general.profit_factor !== null ? general.profit_factor.toFixed(2) : '-'}</p>
-                <p className="text-xs text-[#4B5563] mt-1 flex items-center">Profit factor <InfoTooltip text="Cuanto se gana por cada unidad que se pierde. Mayor a 1 significa que las ganancias superan a las perdidas." /></p>
+              <div className="rounded-2xl border-1.5 border-black/15 bg-white p-3.5">
+                <p className="font-display text-xl font-extrabold text-[#1F2937]">{stats.profitFactor !== null ? stats.profitFactor.toFixed(2) : '-'}</p>
+                <p className="text-[10px] text-[#4B5563] font-bold flex items-center gap-1">Profit factor <InfoTooltip text="Ganado sobre perdido. Mayor a 1 es rentable." /></p>
               </div>
             </div>
 
-            <p className="text-xs font-bold uppercase tracking-wider text-[#FFA94D] mb-4">Segmentacion</p>
-
-            <h2 className="font-display text-lg font-bold text-[#1F2937] mb-4">Rendimiento por deporte</h2>
-            {bySport.length === 0 && (
-              <div className="rounded-2xl border border-black/15 bg-white p-6 text-center mb-10">
-                <p className="text-sm text-[#4B5563]">Aun no hay datos suficientes.</p>
-              </div>
-            )}
-            {bySport.length > 0 && (
-              <div className="space-y-3 mb-10">
-                {bySport.map(function (s) {
-                  const label = formatSport(s.sport)
-                  return (
-                    <div key={s.sport} className="flex items-center justify-between rounded-2xl border border-black/15 bg-white p-4">
-                      <div>
-                        <p className="text-sm font-semibold text-[#1F2937]">{label}</p>
-                        <p className="text-xs text-[#4B5563]">{s.count} pronosticos</p>
-                      </div>
-                      <span className="text-sm font-bold" style={{ color: s.profit >= 0 ? '#10B981' : '#FF7A8C' }}>{formatUnits(s.profit)}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <h2 className="font-display text-lg font-bold text-[#1F2937] mb-4">Rendimiento por mercado</h2>
-            {byType.length === 0 && (
-              <div className="rounded-2xl border border-black/15 bg-white p-6 text-center mb-10">
-                <p className="text-sm text-[#4B5563]">Aun no hay datos suficientes.</p>
-              </div>
-            )}
-            {byType.length > 0 && (
-              <div className="space-y-3 mb-10">
-                {byType.map(function (t) {
-                  const label = formatBetType(t.type)
-                  return (
-                    <div key={t.type} className="flex items-center justify-between rounded-2xl border border-black/15 bg-white p-4">
-                      <div>
-                        <p className="text-sm font-semibold text-[#1F2937]">{label}</p>
-                        <p className="text-xs text-[#4B5563]">{t.count} pronosticos</p>
-                      </div>
-                      <span className="text-sm font-bold text-[#1F2937]">{t.win_rate}% WR</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <h2 className="font-display text-lg font-bold text-[#1F2937] mb-4">En vivo vs Pre-partido</h2>
-            {byTiming.length === 0 && (
-              <div className="rounded-2xl border border-black/15 bg-white p-6 text-center mb-10">
-                <p className="text-sm text-[#4B5563]">Aun no hay datos suficientes.</p>
-              </div>
-            )}
-            {byTiming.length > 0 && (
-              <div className="space-y-3 mb-10">
-                {byTiming.map(function (t) {
-                  const label = timingLabel[t.timing] || t.timing
-                  return (
-                    <div key={t.timing} className="rounded-2xl border border-black/15 bg-white p-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold text-[#1F2937]">{label}</p>
-                        <span className="text-sm font-bold text-[#1F2937]">{t.win_rate}% WR</span>
-                      </div>
-                      <p className="text-xs text-[#4B5563]">{t.count} pronosticos - {t.percentage}% del total</p>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            <h2 className="font-display text-lg font-bold text-[#1F2937] mb-4">Software vs Manual</h2>
-            {byAnalysis.length === 0 && (
-              <div className="rounded-2xl border border-black/15 bg-white p-6 text-center">
-                <p className="text-sm text-[#4B5563]">Aun no hay datos suficientes.</p>
-              </div>
-            )}
-            {byAnalysis.length > 0 && (
-              <div className="space-y-3">
-                {byAnalysis.map(function (a) {
-                  const label = analysisLabel[a.analysis] || a.analysis
-                  return (
-                    <div key={a.analysis} className="rounded-2xl border border-black/15 bg-white p-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold text-[#1F2937]">{label}</p>
-                        <span className="text-sm font-bold" style={{ color: a.profit >= 0 ? '#10B981' : '#FF7A8C' }}>{formatUnits(a.profit)}</span>
-                      </div>
-                      <p className="text-xs text-[#4B5563]">{a.count} pronosticos - {a.percentage}% del total - {a.win_rate}% WR</p>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <div className="rounded-2xl bg-[#1F2937] p-6 text-center">
+              <p className="text-[10.5px] uppercase tracking-wider text-white/50 font-bold mb-2">Profit historico acumulado</p>
+              <p className="font-display text-3xl font-extrabold" style={{ color: historicProfit >= 0 ? '#17C971' : '#E23A52' }}>{formatUnits(historicProfit)}</p>
+            </div>
           </div>
         )}
       </main>
@@ -193,6 +181,7 @@ export default function EstadisticasPage() {
           <a href="/" className="text-[#4B5563]">Inicio</a>
           <a href="/resultados" className="text-[#4B5563]">Resultados</a>
           <span className="font-semibold text-[#1F2937]">Estadisticas</span>
+          <a href="/como-funciona" className="text-[#4B5563]">Como funciona</a>
           <a href="/perfil" className="text-[#4B5563]">Perfil</a>
         </div>
       </nav>

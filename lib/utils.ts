@@ -45,9 +45,9 @@ export function getStatusColor(status: string): string {
   switch (status) {
     case 'WIN':
     case 'PARTIAL_WIN':
-      return '#10B981'
+      return '#17C971'
     case 'LOSS':
-      return '#FF7A8C'
+      return '#E23A52'
     case 'VOID':
       return '#9CA3AF'
     case 'PENDING':
