@@ -38,10 +38,7 @@ export function useRegisterResult() {
 
   const registerResult = async function (
     betId: string,
-    legs: { id: string; status: string }[],
-    allLegs: BetLeg[],
-    originalOdds: number,
-    stake: number,
+    legsToUpdate: { id: string; status: string; sharedEventId: string | null }[],
     resultAt: string
   ) {
     setSaving(true)
@@ -49,48 +46,57 @@ export function useRegisterResult() {
 
     try {
       const supabase = createClient()
+      const resultAtISO = new Date(resultAt).toISOString()
 
-      for (const leg of legs) {
-        const updateResult = await supabase
+      for (const leg of legsToUpdate) {
+        const legUpdate = await supabase
           .from('bet_legs')
           .update({ status: leg.status })
           .eq('id', leg.id)
 
-        if (updateResult.error) throw updateResult.error
+        if (legUpdate.error) throw new Error(legUpdate.error.message)
+
+        if (leg.sharedEventId) {
+          await supabase
+            .from('shared_events')
+            .update({ status: leg.status, result_at: resultAtISO })
+            .eq('id', leg.sharedEventId)
+        }
       }
 
-      const updatedLegs = allLegs.map(function (leg) {
-        const match = legs.find(function (l) { return l.id === leg.id })
-        if (match) {
-          const copy = Object.assign({}, leg)
-          copy.status = match.status as 'WIN' | 'LOSS' | 'VOID'
-          return copy
-        }
-        return leg
-      })
+      const betResult = await supabase.from('bets').select('*').eq('id', betId).single()
+      if (betResult.error) throw new Error(betResult.error.message)
+      const bet = betResult.data
 
-      const result = calculateBetResult(updatedLegs, originalOdds, stake)
-      const resultAtISO = new Date(resultAt).toISOString()
+      const legsResult = await supabase.from('bet_legs').select('*').eq('bet_id', betId)
+      if (legsResult.error) throw new Error(legsResult.error.message)
+      const allLegs = legsResult.data as BetLeg[]
 
-      const betUpdate = await supabase
-        .from('bets')
-        .update({
-          status: result.status,
-          odds_combined: result.finalOdds,
-          profit: result.profit,
-          result_at: resultAtISO,
-        })
-        .eq('id', betId)
+      const stillPending = allLegs.some(function (l) { return l.status === 'PENDING' })
 
-      if (betUpdate.error) throw betUpdate.error
+      if (!stillPending) {
+        const result = calculateBetResult(allLegs, Number(bet.odds_combined), Number(bet.stake))
+
+        const betUpdate = await supabase
+          .from('bets')
+          .update({
+            status: result.status,
+            odds_combined: result.finalOdds,
+            profit: result.profit,
+            result_at: resultAtISO,
+          })
+          .eq('id', betId)
+
+        if (betUpdate.error) throw new Error(betUpdate.error.message)
+      }
 
       setSaving(false)
-      return { success: true, result: result }
+      return { success: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error desconocido'
       setError(message)
       setSaving(false)
-      return { success: false, result: null }
+      return { success: false }
     }
   }
 

@@ -1,14 +1,10 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Bet } from '@/types'
 
 export function useDashboardSummary() {
   const [todayCount, setTodayCount] = useState(0)
-  const [todayWon, setTodayWon] = useState(0)
-  const [todayProfit, setTodayProfit] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
   const [weekCount, setWeekCount] = useState(0)
-  const [nextPending, setNextPending] = useState<Bet | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(function () {
@@ -23,35 +19,20 @@ export function useDashboardSummary() {
 
         const allResult = await supabase
           .from('bets')
-          .select('*')
+          .select('id, created_at, status')
           .order('created_at', { ascending: true })
 
         if (allResult.error) throw allResult.error
 
         const bets = allResult.data || []
 
-        const todayBets = bets.filter(function (b) {
-          return new Date(b.created_at) >= startOfToday
-        })
-        const weekBets = bets.filter(function (b) {
-          return new Date(b.created_at) >= startOfWeek
-        })
-        const wonToday = todayBets.filter(function (b) {
-          return b.status === 'WIN' || b.status === 'PARTIAL_WIN'
-        })
-        const profitToday = todayBets.reduce(function (sum, b) {
-          return sum + Number(b.profit || 0)
-        }, 0)
-        const pending = bets.filter(function (b) {
-          return b.status === 'PENDING'
-        })
+        const publishedTodayCount = bets.filter(function (b) { return new Date(b.created_at) >= startOfToday }).length
+        const weekBets = bets.filter(function (b) { return new Date(b.created_at) >= startOfWeek })
+        const pending = bets.filter(function (b) { return b.status === 'PENDING' })
 
-        setTodayCount(todayBets.length)
-        setTodayWon(wonToday.length)
-        setTodayProfit(Math.round(profitToday * 100) / 100)
+        setTodayCount(publishedTodayCount)
         setPendingCount(pending.length)
         setWeekCount(weekBets.length)
-        setNextPending(pending.length > 0 ? pending[0] : null)
       } catch (err) {
         console.error('Error cargando resumen:', err)
       } finally {
@@ -62,5 +43,5 @@ export function useDashboardSummary() {
     fetchSummary()
   }, [])
 
-  return { todayCount, todayWon, todayProfit, pendingCount, weekCount, nextPending, loading }
+  return { todayCount, pendingCount, weekCount, loading }
 }

@@ -16,6 +16,15 @@ function slugify(text: string): string {
     .replace(/^_+|_+$/g, '')
 }
 
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object' && 'message' in err) {
+    const msg = (err as { message: unknown }).message
+    if (msg) return String(msg)
+  }
+  return 'Error desconocido al crear mercado'
+}
+
 export function useMarketsCatalog(sport: string) {
   const [markets, setMarkets] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,7 +48,7 @@ export function useMarketsCatalog(sport: string) {
 
       setMarkets(filtered.map(function (m) { return { id: m.id, name: m.market_name } }))
     } catch (err) {
-      console.error('Error cargando mercados:', err)
+      console.error('Error cargando mercados:', getErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -66,13 +75,16 @@ export function useMarketsCatalog(sport: string) {
         .select('id, market_name')
         .single()
 
-      if (insertResult.error) throw insertResult.error
+      if (insertResult.error) {
+        console.error('Error de Supabase al crear mercado:', JSON.stringify(insertResult.error))
+        throw new Error(getErrorMessage(insertResult.error))
+      }
 
       const newItem = { id: insertResult.data.id, name: insertResult.data.market_name }
       await fetchMarkets()
       return newItem
     } catch (err) {
-      console.error('Error creando mercado:', err)
+      console.error('Error creando mercado:', getErrorMessage(err))
       return null
     }
   }

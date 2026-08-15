@@ -36,7 +36,7 @@ export interface Bet {
 }
 
 export type Sport = 'FOOTBALL' | 'TENNIS' | 'BASKETBALL'
-export type BetLegStatus = 'WIN' | 'LOSS' | 'VOID'
+export type BetLegStatus = 'WIN' | 'LOSS' | 'VOID' | 'PENDING'
 
 export interface BetLeg {
   id: string
@@ -50,6 +50,7 @@ export interface BetLeg {
   odds: number
   status: BetLegStatus
   evidence_url: string | null
+  shared_event_id: string | null
   created_at: string
 }
 

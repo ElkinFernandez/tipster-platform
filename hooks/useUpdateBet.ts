@@ -9,12 +9,6 @@ function getErrorMessage(err: unknown): string {
     const msg = (err as { message: unknown }).message
     if (msg) return String(msg)
   }
-  try {
-    const json = JSON.stringify(err)
-    if (json && json !== '{}') return json
-  } catch (e) {
-    // ignore
-  }
   return 'Error desconocido al guardar'
 }
 
@@ -22,7 +16,11 @@ export function useUpdateBet() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const updateBet = async function (betId: string, data: NewBetData) {
+  const updateBet = async function (
+    betId: string,
+    data: NewBetData,
+    preserve: { keepResult: boolean; status: string; profit: number; resultAt: string | null; legStatuses: string[] }
+  ) {
     setSaving(true)
     setError(null)
 
@@ -38,21 +36,30 @@ export function useUpdateBet() {
       const stakeNum = parseFloat(data.stake)
       const createdAtISO = new Date(data.created_at).toISOString()
 
-      const betUpdate = await supabase
-        .from('bets')
-        .update({
-          type: data.type,
-          timing: data.timing,
-          analysis_type: data.analysis_type,
-          total_legs: data.legs.length,
-          odds_combined: combinedOdds,
-          stake: stakeNum,
-          explanation_url: data.explanation_url || null,
-          evidence_url: data.evidence_url || null,
-          created_at: createdAtISO,
-          published_at: createdAtISO,
-        })
-        .eq('id', betId)
+      const betUpdatePayload: Record<string, unknown> = {
+        type: data.type,
+        timing: data.timing,
+        analysis_type: data.analysis_type,
+        total_legs: data.legs.length,
+        odds_combined: combinedOdds,
+        stake: stakeNum,
+        explanation_url: data.explanation_url || null,
+        evidence_url: data.evidence_url || null,
+        created_at: createdAtISO,
+        published_at: createdAtISO,
+      }
+
+      if (preserve.keepResult) {
+        betUpdatePayload.status = preserve.status
+        betUpdatePayload.profit = preserve.profit
+        betUpdatePayload.result_at = preserve.resultAt
+      } else {
+        betUpdatePayload.status = 'PENDING'
+        betUpdatePayload.profit = 0
+        betUpdatePayload.result_at = null
+      }
+
+      const betUpdate = await supabase.from('bets').update(betUpdatePayload).eq('id', betId)
 
       if (betUpdate.error) {
         console.error('Error actualizando bet:', betUpdate.error)
@@ -65,41 +72,68 @@ export function useUpdateBet() {
         throw new Error(getErrorMessage(deleteOld.error))
       }
 
-      const legsToInsert = data.legs.map(function (leg: NewLeg) {
+      let i = 0
+      for (const leg of data.legs as NewLeg[]) {
         const isFreeText = leg.market_selection_id === 'FREE_TEXT'
-
         const leagueClean = toTitleCase(leg.league)
         const comp1Clean = toTitleCase(leg.competitor_1)
         const comp2Clean = toTitleCase(leg.competitor_2)
-
         const selectionFinal = isFreeText ? toTitleCase(leg.selection_free_text) : leg.selection_name_text
+        const oddsNum = parseFloat(leg.odds)
 
-        const marketIdValid = leg.sport_market_id && leg.sport_market_id !== 'CUSTOM' ? leg.sport_market_id : null
-        const selectionIdValid = leg.market_selection_id && leg.market_selection_id !== 'FREE_TEXT' ? leg.market_selection_id : null
+        let sharedEventId = leg.reused_event_id || null
 
-        return {
+        if (!sharedEventId) {
+          const eventInsert = await supabase
+            .from('shared_events')
+            .insert({
+              sport: leg.sport,
+              league: leagueClean,
+              competitor_1: comp1Clean,
+              competitor_2: comp2Clean,
+              sport_market_id: leg.sport_market_id || null,
+              market_selection_id: isFreeText ? null : (leg.market_selection_id || null),
+              market: leg.market_name_text,
+              selection: selectionFinal,
+              status: preserve.keepResult ? (preserve.legStatuses[i] || 'PENDING') : 'PENDING',
+            })
+            .select('id')
+            .single()
+
+          if (eventInsert.error) {
+            console.error('Error creando shared_event:', eventInsert.error)
+            throw new Error(getErrorMessage(eventInsert.error))
+          }
+
+          sharedEventId = eventInsert.data.id
+        }
+
+        const legStatus = preserve.keepResult ? (preserve.legStatuses[i] || 'PENDING') : 'PENDING'
+
+        const legInsert = await supabase.from('bet_legs').insert({
           bet_id: betId,
           sport: leg.sport,
           league: leagueClean,
           competitor_1: comp1Clean,
           competitor_2: comp2Clean,
-          sport_market_id: marketIdValid,
-          market_selection_id: selectionIdValid,
+          sport_market_id: leg.sport_market_id || null,
+          market_selection_id: isFreeText ? null : (leg.market_selection_id || null),
           market_custom: null,
           selection_custom: null,
           market: leg.market_name_text,
           selection: selectionFinal,
-          odds: parseFloat(leg.odds),
-          status: 'PENDING',
+          odds: oddsNum,
+          status: legStatus,
           created_at: createdAtISO,
+          shared_event_id: sharedEventId,
+        })
+
+        if (legInsert.error) {
+          console.error('Error insertando bet_leg nuevo:', legInsert.error)
+          throw new Error(getErrorMessage(legInsert.error))
         }
-      })
 
-      const legsInsert = await supabase.from('bet_legs').insert(legsToInsert)
-
-      if (legsInsert.error) {
-        console.error('Error insertando bet_legs nuevos:', legsInsert.error)
-        throw new Error(getErrorMessage(legsInsert.error))
+        i = i + 1
       }
 
       setSaving(false)

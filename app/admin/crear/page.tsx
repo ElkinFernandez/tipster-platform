@@ -31,7 +31,7 @@ function emptyLeg(): NewLeg {
   return {
     sport: 'FOOTBALL', league: '', competitor_1: '', competitor_2: '',
     sport_market_id: '', market_selection_id: '', market_custom: '', selection_custom: '',
-    selection_free_text: '', market_name_text: '', selection_name_text: '', odds: '',
+    selection_free_text: '', market_name_text: '', selection_name_text: '', odds: '', reused_event_id: '',
   }
 }
 
@@ -124,6 +124,7 @@ function CrearApuestaContent() {
 
     if (result.success) {
       for (const leg of legs) {
+        if (leg.reused_event_id) continue
         const isTournament = isTournamentLevelMarket(leg.market_name_text)
         if (!isTournament) {
           await registerNewEntity('COMPETITOR', leg.sport, leg.competitor_1)
@@ -149,6 +150,9 @@ function CrearApuestaContent() {
   }
 
   const isValid = legs.every(function (leg) {
+    if (leg.reused_event_id) {
+      return leg.odds ? true : false
+    }
     const isTournament = isTournamentLevelMarket(leg.market_name_text)
     const hasBasics = leg.league && leg.odds && (isTournament || (leg.competitor_1 && leg.competitor_2))
     const hasMarket = leg.sport_market_id ? true : false

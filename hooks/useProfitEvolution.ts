@@ -21,17 +21,17 @@ export function useProfitEvolution() {
           .from('bets')
           .select('*')
           .neq('status', 'PENDING')
-          .order('created_at', { ascending: true })
+          .order('result_at', { ascending: true })
 
         if (result.error) throw result.error
 
-        const bets = result.data || []
+        const bets = (result.data || []).filter(function (b) { return b.result_at })
         let running = 0
         const list: ProfitPoint[] = []
 
         bets.forEach(function (bet, index) {
           running = running + Number(bet.profit || 0)
-          const date = new Date(bet.created_at)
+          const date = new Date(bet.result_at)
           const fullLabel = date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
           const shortLabel = date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
           list.push({ label: fullLabel, shortLabel: shortLabel + ' #' + (index + 1), profit: Math.round(running * 100) / 100 })

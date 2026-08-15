@@ -15,6 +15,7 @@ export interface NewLeg {
   market_name_text: string
   selection_name_text: string
   odds: string
+  reused_event_id: string
 }
 
 export interface NewBetData {
@@ -30,8 +31,11 @@ export interface NewBetData {
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message
-  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: unknown }).message)
-  return JSON.stringify(err)
+  if (err && typeof err === 'object' && 'message' in err) {
+    const msg = (err as { message: unknown }).message
+    if (msg) return String(msg)
+  }
+  return 'Error desconocido al guardar'
 }
 
 export function useCreateBet() {
@@ -81,38 +85,63 @@ export function useCreateBet() {
 
       const betId = betInsert.data.id
 
-      const legsToInsert = data.legs.map(function (leg) {
+      for (const leg of data.legs) {
         const isFreeText = leg.market_selection_id === 'FREE_TEXT'
-
         const leagueClean = toTitleCase(leg.league)
         const comp1Clean = toTitleCase(leg.competitor_1)
         const comp2Clean = toTitleCase(leg.competitor_2)
-
         const selectionFinal = isFreeText ? toTitleCase(leg.selection_free_text) : leg.selection_name_text
+        const oddsNum = parseFloat(leg.odds)
 
-        return {
+        let sharedEventId = leg.reused_event_id || null
+
+        if (!sharedEventId) {
+          const eventInsert = await supabase
+            .from('shared_events')
+            .insert({
+              sport: leg.sport,
+              league: leagueClean,
+              competitor_1: comp1Clean,
+              competitor_2: comp2Clean,
+              sport_market_id: leg.sport_market_id || null,
+              market_selection_id: isFreeText ? null : (leg.market_selection_id || null),
+              market: leg.market_name_text,
+              selection: selectionFinal,
+              status: 'PENDING',
+            })
+            .select('id')
+            .single()
+
+          if (eventInsert.error) {
+            console.error('Error creando shared_event:', eventInsert.error)
+            throw new Error(getErrorMessage(eventInsert.error))
+          }
+
+          sharedEventId = eventInsert.data.id
+        }
+
+        const legInsert = await supabase.from('bet_legs').insert({
           bet_id: betId,
           sport: leg.sport,
           league: leagueClean,
           competitor_1: comp1Clean,
           competitor_2: comp2Clean,
-          sport_market_id: leg.sport_market_id,
-          market_selection_id: isFreeText ? null : leg.market_selection_id,
+          sport_market_id: leg.sport_market_id || null,
+          market_selection_id: isFreeText ? null : (leg.market_selection_id || null),
           market_custom: null,
           selection_custom: null,
           market: leg.market_name_text,
           selection: selectionFinal,
-          odds: parseFloat(leg.odds),
+          odds: oddsNum,
           status: 'PENDING',
           created_at: createdAtISO,
+          shared_event_id: sharedEventId,
+        })
+
+        if (legInsert.error) {
+          console.error('Error insertando bet_leg:', legInsert.error)
+          throw new Error(getErrorMessage(legInsert.error))
         }
-      })
-
-      const legsInsert = await supabase.from('bet_legs').insert(legsToInsert)
-
-      if (legsInsert.error) {
-        console.error('Error insertando bet_legs:', legsInsert.error)
-        throw new Error(getErrorMessage(legsInsert.error))
       }
 
       setSaving(false)

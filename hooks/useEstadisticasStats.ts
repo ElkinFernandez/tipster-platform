@@ -72,7 +72,7 @@ export function useEstadisticasStats(period: Period) {
           .from('bets')
           .select('*, bet_legs(sport)')
           .neq('status', 'PENDING')
-          .order('created_at', { ascending: true })
+          .order('result_at', { ascending: true })
 
         if (result.error) throw result.error
 
@@ -84,11 +84,15 @@ export function useEstadisticasStats(period: Period) {
             const now = new Date()
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
             bets = bets.filter(function (b) {
-              const d = new Date(b.created_at)
+              if (!b.result_at) return false
+              const d = new Date(b.result_at)
               return d >= start && d < startOfToday
             })
           } else {
-            bets = bets.filter(function (b) { return new Date(b.created_at) >= start })
+            bets = bets.filter(function (b) {
+              if (!b.result_at) return false
+              return new Date(b.result_at) >= start
+            })
           }
         }
 

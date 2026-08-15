@@ -11,10 +11,16 @@ function formatUnits(value: number): string {
   return sign + value.toFixed(2) + 'u'
 }
 
+function isTournamentLevelMarket(marketName: string): boolean {
+  const clean = (marketName || '').toLowerCase()
+  return clean.indexOf('ganador del torneo') !== -1 || clean.indexOf('goleador del torneo') !== -1
+}
+
 function AllBetsContent() {
   const { bets, loading, refetch } = useAllBetsAdmin()
   const { deleteBet, deleting } = useDeleteBet()
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function handleDelete(betId: string) {
     const result = await deleteBet(betId)
@@ -49,7 +55,9 @@ function AllBetsContent() {
               const color = getStatusColor(bet.status)
               const label = getStatusAdj(bet.status)
               const isConfirming = confirmingId === bet.id
-              const canEdit = bet.status !== 'PENDING'
+              const legs = bet.bet_legs || []
+              const isSingle = legs.length <= 1
+              const isExpanded = expandedId === bet.id
 
               return (
                 <div key={bet.id} className="rounded-2xl border border-black/15 bg-white p-4">
@@ -67,14 +75,53 @@ function AllBetsContent() {
                     </div>
                   </div>
 
+                  {isSingle && legs.length === 1 && (
+                    <div className="rounded-xl bg-[#F3F1EA] p-3 mb-3">
+                      {isTournamentLevelMarket(legs[0].market) ? (
+                        <p className="text-xs font-semibold text-[#1F2937]">{legs[0].league}</p>
+                      ) : (
+                        <p className="text-xs font-semibold text-[#1F2937]">{legs[0].competitor_1} vs {legs[0].competitor_2}</p>
+                      )}
+                      <p className="text-[11px] text-[#4B5563] mt-0.5">{legs[0].market}: {legs[0].selection}</p>
+                    </div>
+                  )}
+
+                  {!isSingle && (
+                    <div className="mb-3">
+                      <button
+                        onClick={function () { setExpandedId(isExpanded ? null : bet.id) }}
+                        className="w-full flex items-center justify-between rounded-xl bg-[#F3F1EA] p-3 text-left"
+                      >
+                        <span className="text-xs font-semibold text-[#1F2937]">{legs.length} eventos</span>
+                        <span className="text-xs font-bold text-[#3FA9B7]">{isExpanded ? 'Ocultar' : 'Ver eventos'}</span>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="space-y-2 mt-2">
+                          {legs.map(function (leg) {
+                            return (
+                              <div key={leg.id} className="rounded-xl border border-black/10 bg-white p-3">
+                                {isTournamentLevelMarket(leg.market) ? (
+                                  <p className="text-xs font-semibold text-[#1F2937]">{leg.league}</p>
+                                ) : (
+                                  <p className="text-xs font-semibold text-[#1F2937]">{leg.competitor_1} vs {leg.competitor_2}</p>
+                                )}
+                                <p className="text-[11px] text-[#4B5563] mt-0.5">{leg.market}: {leg.selection} - Cuota {Number(leg.odds).toFixed(2)}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {!isConfirming && (
                     <div className="flex gap-2 pt-3 border-t border-black/10">
+                      <a href={'/admin/editar/' + bet.id} className="flex-1 text-center rounded-xl border border-black/15 text-xs font-bold text-[#1F2937] py-2">Editar</a>
                       <a href={'/admin/registrar/' + bet.id} className="flex-1 text-center rounded-xl border border-black/15 text-xs font-bold text-[#1F2937] py-2">
-                        {canEdit ? 'Editar resultado' : 'Registrar resultado'}
+                        {bet.status === 'PENDING' ? 'Registrar' : 'Corregir resultado'}
                       </a>
-                      <button onClick={function () { setConfirmingId(bet.id) }} className="flex-1 rounded-xl border border-[#E23A52]/40 text-xs font-bold text-[#E23A52] py-2">
-                        Eliminar
-                      </button>
+                      <button onClick={function () { setConfirmingId(bet.id) }} className="flex-1 rounded-xl border border-[#E23A52]/40 text-xs font-bold text-[#E23A52] py-2">Eliminar</button>
                     </div>
                   )}
 
@@ -82,12 +129,8 @@ function AllBetsContent() {
                     <div className="pt-3 border-t border-black/10">
                       <p className="text-xs text-[#4B5563] mb-3">Esta accion no se puede deshacer. Se borrara la apuesta y todos sus eventos.</p>
                       <div className="flex gap-2">
-                        <button onClick={function () { setConfirmingId(null) }} className="flex-1 rounded-xl border border-black/15 text-xs font-bold text-[#1F2937] py-2">
-                          Cancelar
-                        </button>
-                        <button onClick={function () { handleDelete(bet.id) }} disabled={deleting} className="flex-1 rounded-xl bg-[#E23A52] text-xs font-bold text-white py-2 disabled:opacity-50">
-                          {deleting ? 'Borrando...' : 'Si, eliminar'}
-                        </button>
+                        <button onClick={function () { setConfirmingId(null) }} className="flex-1 rounded-xl border border-black/15 text-xs font-bold text-[#1F2937] py-2">Cancelar</button>
+                        <button onClick={function () { handleDelete(bet.id) }} disabled={deleting} className="flex-1 rounded-xl bg-[#E23A52] text-xs font-bold text-white py-2 disabled:opacity-50">{deleting ? 'Borrando...' : 'Si, eliminar'}</button>
                       </div>
                     </div>
                   )}
