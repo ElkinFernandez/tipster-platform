@@ -21,13 +21,15 @@ export default function ComoFuncionaPage() {
         <p className="text-sm text-[#4B5563] mb-6">Ningun resultado se anota despues de forma arbitraria. Este es el proceso exacto que sigue cada apuesta.</p>
 
         <div className="relative pl-8">
-          <div className="absolute left-3.5 top-1.5 bottom-1.5 w-px bg-black/10"></div>
-          {steps.map(function (s, i) {
+           {steps.map(function (s, i) {
             return (
               <div key={s.n} className={'relative ' + (i < steps.length - 1 ? 'mb-5' : '')}>
-                <div className="absolute -left-8 top-0 w-7 h-7 rounded-full bg-[#1F2937] text-white flex items-center justify-center font-display font-extrabold text-[10.5px] border-4 border-[#F3F1EA]">{s.n}</div>
-                <div className="rounded-r-2xl border-1.5 border-l-0 border-black/15 bg-white pl-4 pr-4 py-3.5" style={{ borderLeft: '3px solid #3FA9B7' }}>
-                  <h3 className="font-display text-sm font-bold text-[#1F2937] mb-1">{s.title}</h3>
+                {i < steps.length - 1 && (
+                    <div className="absolute left-[-14px] top-9 bottom-[-20px] w-px bg-black/25"></div>
+                )}
+                <div className="absolute -left-8 top-0 w-9 h-9 rounded-full bg-[#1F2937] text-white flex items-center justify-center font-display font-extrabold text-[10.5px] border-4 border-[#F3F1EA]">{s.n}</div>
+                <div className="ml-3 rounded-r-2xl border-1.5 border-l-0 border-black/15 bg-white pl-4 pr-4 py-3.5" style={{ borderLeft: '3px solid #3FA9B7' }}>
+                  <h3 className="font-display text-base font-bold text-[#1F2937] mb-1">{s.title}</h3>
                   <p className="text-xs text-[#4B5563] leading-relaxed">{s.text}</p>
                 </div>
               </div>
@@ -37,7 +39,7 @@ export default function ComoFuncionaPage() {
 
         <div className="rounded-2xl bg-[#1F2937] text-white p-6 mt-6 text-center">
           <h3 className="font-display text-base font-bold mb-1.5">Todo queda a la vista.</h3>
-          <p className="text-xs text-white/55 mb-4">Puedes revisar el historial completo cuando quieras.</p>
+          <p className="text-sm text-white/55 mb-4">Puedes revisar el historial completo cuando quieras.</p>
           <a href="/resultados" className="inline-block rounded-2xl bg-[#FFA94D] text-white font-bold text-sm py-2.5 px-5">Ver resultados</a>
         </div>
       </main>

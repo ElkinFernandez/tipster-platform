@@ -43,8 +43,6 @@ export function useResolveSharedEvent() {
         if (betResult.error || !betResult.data) continue
         const bet = betResult.data
 
-        if (bet.status !== 'PENDING') continue
-
         const legsResult = await supabase.from('bet_legs').select('*').eq('bet_id', betId)
         if (legsResult.error || !legsResult.data) continue
         const allLegs = legsResult.data as BetLeg[]

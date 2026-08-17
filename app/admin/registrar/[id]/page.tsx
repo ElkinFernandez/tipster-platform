@@ -160,7 +160,7 @@ function RegistrarContent() {
                       {isTournament && <p className="text-sm font-semibold text-[#1F2937] mt-2">{leg.league}</p>}
                       {!isTournament && <p className="text-sm font-semibold text-[#1F2937] mt-2">{leg.competitor_1} vs {leg.competitor_2}</p>}
                       <p className="text-xs text-[#4B5563] mt-1 mb-3">{leg.market}: {leg.selection} - Cuota {Number(leg.odds).toFixed(2)}</p>
-                      <p className="text-xs text-[#4B5563]">Este evento esta en mas de una apuesta. Se resuelve desde <a href="/admin/eventos-pendientes" className="font-bold text-[#3FA9B7]">Eventos pendientes</a>.</p>
+                      <p className="text-xs text-[#4B5563]">Este evento esta en mas de una apuesta. Se resuelve o corrige desde <a href="/admin/eventos-pendientes" className="font-bold text-[#3FA9B7]">Eventos pendientes</a> (pestaña Pendientes o Resueltos).</p>
                     </section>
                   )
                 })}

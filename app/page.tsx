@@ -15,15 +15,9 @@ function formatUnits(value: number): string {
 
 const monthShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
-interface TooltipProps {
-  active?: boolean
-  payload?: { value: number }[]
-  label?: string
-}
-
-function CustomTooltip(props: TooltipProps) {
+function CustomTooltip(props: any) {
   if (props.active && props.payload && props.payload.length > 0) {
-    const value = props.payload[0].value
+    const value = props.payload[0].value as number
     const color = value >= 0 ? '#17C971' : '#E23A52'
     return (
       <div className="rounded-xl bg-[#1F2937] px-3 py-2 shadow-lg">
@@ -73,7 +67,7 @@ export default function HomePage() {
       win_rate: Math.round(winRate * 10) / 10,
       roi: Math.round(roi * 10) / 10,
       total_profit: Math.round(totalProfit * 100) / 100,
-      average_odds: Math.round(avgOdds * 1000) / 1000,
+      average_odds: Math.round(avgOdds * 100) / 100,
     }
   }, [filteredBets])
 
@@ -140,7 +134,7 @@ export default function HomePage() {
               <div>
                 <div className="flex items-start justify-between mb-3.5">
                   <p className="text-[10.5px] font-bold uppercase tracking-wider text-[#4B5563]">Profit historico</p>
-                  <span className="text-[10.5px] font-bold text-[#FF9933] bg-[#FFA94D]/15 px-2.5 py-1 rounded-full">{stats.roi}% ROI</span>
+                  <span className="text-[12.5px] font-bold text-[#FF9933] bg-[#FFA94D]/15 px-2.5 py-1 rounded-full">{stats.roi}% ROI</span>
                 </div>
                 <p className="font-display text-[42px] font-extrabold leading-none mb-3.5" style={{ color: stats.total_profit >= 0 ? '#17C971' : '#E23A52' }}>{formatUnits(stats.total_profit)}</p>
                 <div className="flex justify-between border-t border-black/10 pt-3.5">
@@ -212,7 +206,7 @@ export default function HomePage() {
                     <Tooltip content={CustomTooltip} />
                     <Area type="monotone" dataKey="profit" stroke={chartColor} strokeWidth={3} fill="url(#profitFill)" dot={false} activeDot={{ r: 5, fill: chartColor, strokeWidth: 2, stroke: '#fff' }} isAnimationActive={true} animationDuration={1300} animationEasing="ease-out" />
                     {peak && (
-                      <ReferenceDot x={peak.shortLabel} y={peak.profit} r={4.5} fill={chartColor} stroke="#fff" strokeWidth={2} label={{ value: 'Max ' + formatUnits(peak.profit) + ' \u00B7 ' + peak.dateLabel, position: 'top', fill: '#1F2937', fontSize: 9.5, fontWeight: 700 }} />
+                      <ReferenceDot x={peak.shortLabel} y={peak.profit} r={6.5} fill="#1F2937" stroke="#fff" strokeWidth={2} label={{ value: formatUnits(peak.profit), position: 'top', fill: '#1F2937', fontSize: 12.5, fontWeight: 700 }} />
                     )}
                   </AreaChart>
                 </ResponsiveContainer>

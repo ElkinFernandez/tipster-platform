@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useBetsFullData, FullBet } from '@/hooks/useBetsFullData'
 import { formatBetType, getStatusColor } from '@/lib/utils'
+
+const DAY_WINDOW = 8
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
@@ -15,9 +17,12 @@ function isTournamentLevelMarket(marketName: string): boolean {
 }
 
 const dowShort = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB']
-const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const monthShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 function dayKey(d: Date) { return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate() }
+function monthKey(y: number, m: number) { return y + '-' + m }
+function truncate(d: Date) { const c = new Date(d); c.setHours(0, 0, 0, 0); return c }
+function resultDate(b: FullBet) { return new Date(b.result_at as string) }
 
 function ResultCard(props: { bet: FullBet }) {
   const [expanded, setExpanded] = useState(false)
@@ -64,46 +69,100 @@ function ResultCard(props: { bet: FullBet }) {
 }
 
 export default function ResultadosPage() {
-  const { bets, loading } = useBetsFullData()
-  const today = new Date()
-  const [monthOffset, setMonthOffset] = useState(0)
-  const [selectedDayKey, setSelectedDayKey] = useState(dayKey(today))
+  const { bets: allBets, loading } = useBetsFullData()
+  const today = truncate(new Date())
 
-  const viewDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1)
-  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate()
+  const bets = useMemo(function () {
+    return allBets.filter(function (b) { return !!b.result_at })
+  }, [allBets])
+
+  const minDate = useMemo(function () {
+    if (bets.length === 0) return null
+    const sorted = bets.slice().sort(function (a, b) { return resultDate(a).getTime() - resultDate(b).getTime() })
+    return truncate(resultDate(sorted[0]))
+  }, [bets])
 
   const profitByDay = useMemo(function () {
     const map: Record<string, number> = {}
     bets.forEach(function (b) {
-      const k = dayKey(new Date(b.created_at))
+      const k = dayKey(resultDate(b))
       map[k] = (map[k] || 0) + Number(b.profit || 0)
     })
     return map
   }, [bets])
 
-  const days = useMemo(function () {
+  const availableMonths = useMemo(function () {
+    if (!minDate) return []
     const list = []
-    for (let i = 1; i <= daysInMonth; i++) {
-      const d = new Date(viewDate.getFullYear(), viewDate.getMonth(), i)
-      const key = dayKey(d)
-      list.push({ key: key, dow: dowShort[d.getDay()], num: i, profit: profitByDay[key] })
+    let y = minDate.getFullYear()
+    let m = minDate.getMonth()
+    while (y < today.getFullYear() || (y === today.getFullYear() && m <= today.getMonth())) {
+      list.push({ key: monthKey(y, m), year: y, month: m, label: monthShort[m] + ' ' + y })
+      m += 1
+      if (m > 11) { m = 0; y += 1 }
     }
     return list
-  }, [viewDate, daysInMonth, profitByDay])
+  }, [minDate, today])
+
+  const availableYears = useMemo(function () {
+    const set = new Set<number>()
+    availableMonths.forEach(function (mo) { set.add(mo.year) })
+    return Array.from(set).sort(function (a, b) { return a - b })
+  }, [availableMonths])
+
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const activeYear = selectedYear !== null && availableYears.indexOf(selectedYear) !== -1 ? selectedYear : availableYears[availableYears.length - 1]
+
+  const monthsForYear = useMemo(function () {
+    return availableMonths.filter(function (mo) { return mo.year === activeYear })
+  }, [availableMonths, activeYear])
+
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  const activeMonth = monthsForYear.find(function (mo) { return mo.month === selectedMonth }) || monthsForYear[monthsForYear.length - 1]
+
+  const days = useMemo(function () {
+    if (!activeMonth || !minDate) return []
+    const daysInMonth = new Date(activeMonth.year, activeMonth.month + 1, 0).getDate()
+    const list = []
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = truncate(new Date(activeMonth.year, activeMonth.month, i))
+      if (d.getTime() < minDate.getTime() || d.getTime() > today.getTime()) continue
+      const key = dayKey(d)
+      const hasData = profitByDay[key] !== undefined
+      list.push({ key: key, dow: dowShort[d.getDay()], num: i, profit: profitByDay[key], disabled: !hasData })
+    }
+    return list
+  }, [activeMonth, minDate, profitByDay, today])
+
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null)
+
+  const effectiveDayKey = useMemo(function () {
+    if (selectedDayKey && days.some(function (d) { return d.key === selectedDayKey && !d.disabled })) return selectedDayKey
+    const lastValid = days.slice().reverse().find(function (d) { return !d.disabled })
+    return lastValid ? lastValid.key : null
+  }, [selectedDayKey, days])
 
   const betsForDay = useMemo(function () {
-    return bets.filter(function (b) { return dayKey(new Date(b.created_at)) === selectedDayKey })
-  }, [bets, selectedDayKey])
+    if (!effectiveDayKey) return []
+    return bets.filter(function (b) { return dayKey(resultDate(b)) === effectiveDayKey })
+  }, [bets, effectiveDayKey])
 
-  function changeMonth(delta: number) {
-    setMonthOffset(monthOffset + delta)
-  }
+  const [windowStart, setWindowStart] = useState(0)
+  const activeMonthKey = activeMonth ? activeMonth.key : ''
+
+  useEffect(function () {
+    setWindowStart(Math.max(0, days.length - DAY_WINDOW))
+  }, [activeMonthKey, days.length])
+
+  const visibleDays = days.slice(windowStart, windowStart + DAY_WINDOW)
+  const canGoPrev = windowStart > 0
+  const canGoNext = windowStart + DAY_WINDOW < days.length
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
-          <a href="/" className="font-display font-bold tracking-wide text-sm sm:text-base">RAGUX</a>
+          <a href="/" className="font-display font-bold tracking-wide text-sm">RAGUX</a>
           <span className="text-xs text-white/50">EST. 2025</span>
         </div>
       </header>
@@ -111,24 +170,62 @@ export default function ResultadosPage() {
       <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-5">
         <h1 className="font-display text-xl font-extrabold text-[#1F2937] mb-3">Resultados</h1>
 
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={function () { changeMonth(-1) }} className="text-[#4B5563] text-sm font-bold px-2">&larr;</button>
-          <span className="text-sm font-extrabold text-[#1F2937]">{monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}</span>
-          <button onClick={function () { changeMonth(1) }} className="text-[#4B5563] text-sm font-bold px-2">&rarr;</button>
-        </div>
+        {availableYears.length > 1 && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#4B5563] mb-2">Año</p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {availableYears.map(function (y) {
+                const active = y === activeYear
+                return (
+                  <button key={y} onClick={function () { setSelectedYear(y); setSelectedMonth(null); setSelectedDayKey(null) }} className={'rounded-full text-[11.5px] font-bold px-3 py-1.5 border-2 ' + (active ? 'bg-[#1F2937] text-white border-[#1F2937]' : 'bg-white text-[#1F2937] border-black/15')}>{y}</button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
-        <div className="flex gap-1 overflow-x-auto pb-3 mb-3 border-b border-black/10">
-          {days.map(function (d) {
-            const active = d.key === selectedDayKey
-            const hasProfit = d.profit !== undefined
-            return (
-              <button key={d.key} onClick={function () { setSelectedDayKey(d.key) }} className={'shrink-0 text-center px-2.5 py-1.5 rounded-xl ' + (active ? 'bg-white border border-[#FF9933]/40' : '')}>
-                <p className={'text-[9.5px] font-bold ' + (active ? 'text-[#FF9933]' : 'text-[#4B5563]')}>{d.dow}</p>
-                <p className={'text-[11px] font-extrabold ' + (active ? 'text-[#FF9933]' : 'text-[#1F2937]')}>{d.num}</p>
-                <p className="text-[8.5px] font-bold mt-0.5" style={{ color: hasProfit ? (d.profit! >= 0 ? '#17C971' : '#E23A52') : 'transparent' }}>{hasProfit ? formatUnits(d.profit!) : '-'}</p>
-              </button>
-            )
-          })}
+        {monthsForYear.length > 1 && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#4B5563] mb-2">Mes</p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {monthsForYear.map(function (mo) {
+                const active = mo.month === (activeMonth ? activeMonth.month : -1)
+                return (
+                  <button key={mo.key} onClick={function () { setSelectedMonth(mo.month); setSelectedDayKey(null) }} className={'rounded-full text-[11.5px] font-bold px-3 py-1.5 border-2 ' + (active ? 'bg-[#1F2937] text-white border-[#1F2937]' : 'bg-white text-[#1F2937] border-black/15')}>{monthShort[mo.month]}</button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5 pb-3 mb-3 border-b border-black/10">
+          <button
+            onClick={function () { setWindowStart(Math.max(0, windowStart - DAY_WINDOW)) }}
+            disabled={!canGoPrev}
+            className={'shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-sm font-bold ' + (canGoPrev ? 'text-[#1F2937]' : 'text-black/15')}
+          >&#8249;</button>
+          <div className="flex-1 flex gap-2 justify-center">
+            {visibleDays.map(function (d) {
+              const active = d.key === effectiveDayKey
+              return (
+                <button
+                  key={d.key}
+                  onClick={function () { if (!d.disabled) setSelectedDayKey(d.key) }}
+                  disabled={d.disabled}
+                  className={'shrink-0 w-[62px] text-center py-2.5 rounded-2xl border-2 ' + (d.disabled ? 'border-black/8 opacity-35' : active ? 'border-[#FF9933] bg-white' : 'border-black/12 bg-white')}
+                >
+                  <p className={'text-[10.5px] font-bold ' + (active && !d.disabled ? 'text-[#FF9933]' : 'text-[#4B5563]')}>{d.dow}</p>
+                  <p className={'text-[16px] font-extrabold ' + (active && !d.disabled ? 'text-[#FF9933]' : 'text-[#1F2937]')}>{d.num}</p>
+                  <p className="text-[9.5px] font-bold mt-0.5" style={{ color: d.profit !== undefined ? (d.profit >= 0 ? '#17C971' : '#E23A52') : '#9CA3AF' }}>{d.profit !== undefined ? formatUnits(d.profit) : '-'}</p>
+                </button>
+              )
+            })}
+          </div>
+          <button
+            onClick={function () { setWindowStart(Math.min(Math.max(0, days.length - DAY_WINDOW), windowStart + DAY_WINDOW)) }}
+            disabled={!canGoNext}
+            className={'shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-sm font-bold ' + (canGoNext ? 'text-[#1F2937]' : 'text-black/15')}
+          >&#8250;</button>
         </div>
 
         {loading && <p className="text-sm text-[#4B5563] mt-4">Cargando...</p>}

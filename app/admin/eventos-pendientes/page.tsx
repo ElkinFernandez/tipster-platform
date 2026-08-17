@@ -18,8 +18,11 @@ function isTournamentLevelMarket(marketName: string): boolean {
   return clean.indexOf('ganador del torneo') !== -1 || clean.indexOf('goleador del torneo') !== -1
 }
 
+const statusLabel: Record<string, string> = { WIN: 'Gano', LOSS: 'Perdio', VOID: 'Anulado' }
+
 function EventosPendientesContent() {
-  const { events, loading } = usePendingSharedEvents()
+  const [tab, setTab] = useState<'PENDING' | 'RESOLVED'>('PENDING')
+  const { events, loading } = usePendingSharedEvents(tab)
   const { resolveEvent, saving, error } = useResolveSharedEvent()
   const [resultAt, setResultAt] = useState(nowForInput())
   const [resolvedId, setResolvedId] = useState<string | null>(null)
@@ -43,17 +46,22 @@ function EventosPendientesContent() {
 
       <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6">
 
+        <div className="flex gap-2 mb-6">
+          <button onClick={function () { setTab('PENDING') }} className={'flex-1 rounded-xl py-2.5 text-xs font-bold border-2 ' + (tab === 'PENDING' ? 'bg-[#1F2937] text-white border-[#1F2937]' : 'bg-white text-[#1F2937] border-black/15')}>Pendientes</button>
+          <button onClick={function () { setTab('RESOLVED') }} className={'flex-1 rounded-xl py-2.5 text-xs font-bold border-2 ' + (tab === 'RESOLVED' ? 'bg-[#1F2937] text-white border-[#1F2937]' : 'bg-white text-[#1F2937] border-black/15')}>Resueltos</button>
+        </div>
+
         <div className="rounded-2xl border border-black/15 bg-white p-4 mb-6">
           <p className="text-xs font-bold uppercase tracking-wider text-[#4B5563] mb-2">Fecha y hora del resultado</p>
           <input type="datetime-local" value={resultAt} onChange={function (e) { setResultAt(e.target.value) }} className="w-full rounded-xl border border-black/20 bg-white p-3 text-sm text-[#1F2937]" />
-          <p className="text-xs text-[#4B5563] mt-2">Se aplicara a cualquier evento que resuelvas aqui. Escribe la hora tal como la ves en tu propio reloj.</p>
+          <p className="text-xs text-[#4B5563] mt-2">{tab === 'PENDING' ? 'Se aplicara a cualquier evento que resuelvas aqui.' : 'Se aplicara si corriges el resultado de un evento.'} Escribe la hora tal como la ves en tu propio reloj.</p>
         </div>
 
         {loading && <p className="text-sm text-[#4B5563]">Cargando...</p>}
 
         {!loading && events.length === 0 && (
           <div className="rounded-3xl border border-black/15 bg-white p-8 text-center">
-            <p className="text-sm text-[#4B5563]">No hay eventos compartidos pendientes.</p>
+            <p className="text-sm text-[#4B5563]">{tab === 'PENDING' ? 'No hay eventos compartidos pendientes.' : 'No hay eventos compartidos resueltos todavia.'}</p>
           </div>
         )}
 
@@ -71,6 +79,10 @@ function EventosPendientesContent() {
                   {!isTournament && <p className="text-sm font-semibold text-[#1F2937] mb-1">{ev.competitor_1} vs {ev.competitor_2}</p>}
                   <p className="text-xs text-[#4B5563] mb-4">{ev.market}: {ev.selection}</p>
 
+                  {tab === 'RESOLVED' && (
+                    <p className="text-xs text-[#4B5563] mb-3">Resultado actual: <span className="font-bold text-[#1F2937]">{statusLabel[ev.status] || ev.status}</span></p>
+                  )}
+
                   <div className="grid grid-cols-3 gap-2">
                     <button onClick={function () { handleResolve(ev.id, 'WIN') }} disabled={saving} className="rounded-xl py-2.5 text-xs font-bold border-2 border-black/20 text-[#1F2937] hover:bg-[#10B981] hover:text-white hover:border-[#10B981] transition disabled:opacity-40">Gano</button>
                     <button onClick={function () { handleResolve(ev.id, 'LOSS') }} disabled={saving} className="rounded-xl py-2.5 text-xs font-bold border-2 border-black/20 text-[#1F2937] hover:bg-[#FF7A8C] hover:text-white hover:border-[#FF7A8C] transition disabled:opacity-40">Perdio</button>
@@ -78,7 +90,7 @@ function EventosPendientesContent() {
                   </div>
 
                   {resolvedId === ev.id && (
-                    <p className="text-xs text-[#0D9668] font-bold mt-3">Evento resuelto, actualizando apuestas...</p>
+                    <p className="text-xs text-[#0D9668] font-bold mt-3">{tab === 'PENDING' ? 'Evento resuelto, actualizando apuestas...' : 'Resultado corregido, actualizando apuestas...'}</p>
                   )}
                 </div>
               )
