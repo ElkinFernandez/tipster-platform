@@ -1,11 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useBetsFullData, FullBet } from '@/hooks/useBetsFullData'
 import { formatBetType, getStatusColor } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
-
-const DAY_WINDOW = 8
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
@@ -148,16 +146,19 @@ export default function ResultadosPage() {
     return bets.filter(function (b) { return dayKey(resultDate(b)) === effectiveDayKey })
   }, [bets, effectiveDayKey])
 
-  const [windowStart, setWindowStart] = useState(0)
   const activeMonthKey = activeMonth ? activeMonth.key : ''
+  const daysScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(function () {
-    setWindowStart(Math.max(0, days.length - DAY_WINDOW))
-  }, [activeMonthKey, days.length])
-
-  const visibleDays = days.slice(windowStart, windowStart + DAY_WINDOW)
-  const canGoPrev = windowStart > 0
-  const canGoNext = windowStart + DAY_WINDOW < days.length
+    const container = daysScrollRef.current
+    if (!container) return
+    const activeButton = container.querySelector('[data-active="true"]') as HTMLElement | null
+    if (activeButton) {
+      activeButton.scrollIntoView({ block: 'nearest', inline: 'center' })
+    } else {
+      container.scrollLeft = container.scrollWidth
+    }
+  }, [activeMonthKey, effectiveDayKey])
 
   return (
     <div className="min-h-dvh flex flex-col bg-[#F3F1EA]">
@@ -199,34 +200,23 @@ export default function ResultadosPage() {
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 pb-3 mb-3 border-b border-black/10">
-          <button
-            onClick={function () { setWindowStart(Math.max(0, windowStart - DAY_WINDOW)) }}
-            disabled={!canGoPrev}
-            className={'shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-sm font-bold ' + (canGoPrev ? 'text-[#1F2937]' : 'text-black/15')}
-          >&#8249;</button>
-          <div className="flex-1 flex gap-2 justify-center">
-            {visibleDays.map(function (d) {
-              const active = d.key === effectiveDayKey
-              return (
-                <button
-                  key={d.key}
-                  onClick={function () { if (!d.disabled) setSelectedDayKey(d.key) }}
-                  disabled={d.disabled}
-                  className={'shrink-0 w-[62px] text-center py-2.5 rounded-2xl border-2 ' + (d.disabled ? 'border-black/8 opacity-35' : active ? 'border-[#FF9933] bg-white' : 'border-black/12 bg-white')}
-                >
-                  <p className={'text-[10.5px] font-bold ' + (active && !d.disabled ? 'text-[#FF9933]' : 'text-[#4B5563]')}>{d.dow}</p>
-                  <p className={'text-[16px] font-extrabold ' + (active && !d.disabled ? 'text-[#FF9933]' : 'text-[#1F2937]')}>{d.num}</p>
-                  <p className="text-[9.5px] font-bold mt-0.5" style={{ color: d.profit !== undefined ? (d.profit >= 0 ? '#17C971' : '#E23A52') : '#9CA3AF' }}>{d.profit !== undefined ? formatUnits(d.profit) : '-'}</p>
-                </button>
-              )
-            })}
-          </div>
-          <button
-            onClick={function () { setWindowStart(Math.min(Math.max(0, days.length - DAY_WINDOW), windowStart + DAY_WINDOW)) }}
-            disabled={!canGoNext}
-            className={'shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-sm font-bold ' + (canGoNext ? 'text-[#1F2937]' : 'text-black/15')}
-          >&#8250;</button>
+        <div ref={daysScrollRef} className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-3 border-b border-black/10">
+          {days.map(function (d) {
+            const active = d.key === effectiveDayKey
+            return (
+              <button
+                key={d.key}
+                data-active={active}
+                onClick={function () { if (!d.disabled) setSelectedDayKey(d.key) }}
+                disabled={d.disabled}
+                className={'shrink-0 w-[62px] text-center py-2.5 rounded-2xl border-2 ' + (d.disabled ? 'border-black/8 opacity-35' : active ? 'border-[#FF9933] bg-white' : 'border-black/12 bg-white')}
+              >
+                <p className={'text-[10.5px] font-bold ' + (active && !d.disabled ? 'text-[#FF9933]' : 'text-[#4B5563]')}>{d.dow}</p>
+                <p className={'text-[16px] font-extrabold ' + (active && !d.disabled ? 'text-[#FF9933]' : 'text-[#1F2937]')}>{d.num}</p>
+                <p className="text-[9.5px] font-bold mt-0.5" style={{ color: d.profit !== undefined ? (d.profit >= 0 ? '#17C971' : '#E23A52') : '#9CA3AF' }}>{d.profit !== undefined ? formatUnits(d.profit) : '-'}</p>
+              </button>
+            )
+          })}
         </div>
 
         {loading && <p className="text-sm text-[#4B5563] mt-4">Cargando...</p>}
