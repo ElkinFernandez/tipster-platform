@@ -7,6 +7,7 @@ import { usePublicPendingBets } from '@/hooks/usePublicPendingBets'
 import { useInView } from '@/hooks/useInView'
 import { formatBetType, getStatusColor, formatDate } from '@/lib/utils'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceDot } from 'recharts'
+import { BottomNav } from '@/components/BottomNav'
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
@@ -103,7 +104,7 @@ export default function HomePage() {
   }, [bets])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
+    <div className="min-h-dvh flex flex-col bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -114,7 +115,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 pb-28">
         <section className="pt-8 pb-6">
           <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-[#1F2937] leading-tight mb-3">Resultados que puedes comprobar.</h1>
           <p className="text-sm text-[#4B5563] leading-relaxed mb-5 max-w-md">Cada pronostico publicado, cada resultado registrado. Historial completo, sin capturas sueltas.</p>
@@ -256,15 +257,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <nav className="sticky bottom-0 bg-[#F3F1EA]/95 backdrop-blur-sm border-t border-black/15">
-        <div className="max-w-2xl mx-auto px-5 sm:px-8 py-3 flex justify-between text-xs">
-          <span className="font-semibold text-[#1F2937]">Inicio</span>
-          <a href="/resultados" className="text-[#4B5563]">Resultados</a>
-          <a href="/estadisticas" className="text-[#4B5563]">Estadisticas</a>
-          <a href="/como-funciona" className="text-[#4B5563]">Como funciona</a>
-          <a href="/perfil" className="text-[#4B5563]">Perfil</a>
-        </div>
-      </nav>
+      <BottomNav active="inicio" />
     </div>
   )
 }

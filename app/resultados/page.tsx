@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useBetsFullData, FullBet } from '@/hooks/useBetsFullData'
 import { formatBetType, getStatusColor } from '@/lib/utils'
+import { BottomNav } from '@/components/BottomNav'
 
 const DAY_WINDOW = 8
 
@@ -159,7 +160,7 @@ export default function ResultadosPage() {
   const canGoNext = windowStart + DAY_WINDOW < days.length
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
+    <div className="min-h-dvh flex flex-col bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
           <a href="/" className="font-display font-bold tracking-wide text-sm">RAGUX</a>
@@ -167,7 +168,7 @@ export default function ResultadosPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-5">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-5 pb-28">
         <h1 className="font-display text-xl font-extrabold text-[#1F2937] mb-3">Resultados</h1>
 
         {availableYears.length > 1 && (
@@ -243,15 +244,7 @@ export default function ResultadosPage() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 bg-[#F3F1EA]/95 backdrop-blur-sm border-t border-black/15">
-        <div className="max-w-2xl mx-auto px-5 sm:px-8 py-3 flex justify-between text-xs">
-          <a href="/" className="text-[#4B5563]">Inicio</a>
-          <span className="font-semibold text-[#1F2937]">Resultados</span>
-          <a href="/estadisticas" className="text-[#4B5563]">Estadisticas</a>
-          <a href="/como-funciona" className="text-[#4B5563]">Como funciona</a>
-          <a href="/perfil" className="text-[#4B5563]">Perfil</a>
-        </div>
-      </nav>
+      <BottomNav active="resultados" />
     </div>
   )
 }

@@ -1,3 +1,5 @@
+import { BottomNav } from '@/components/BottomNav'
+
 export default function ComoFuncionaPage() {
   const steps = [
     { n: '01', title: 'Se publica en Telegram', text: 'El pronostico se anuncia primero en el canal, con la cuota y el analisis, antes de que el evento ocurra.' },
@@ -7,7 +9,7 @@ export default function ComoFuncionaPage() {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
+    <div className="min-h-dvh flex flex-col bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
           <a href="/" className="font-display font-bold tracking-wide text-sm">RAGUX</a>
@@ -15,7 +17,7 @@ export default function ComoFuncionaPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-6">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-6 pb-28">
         <p className="text-xs font-bold uppercase tracking-wider text-[#FF9933] mb-1">Transparencia</p>
         <h1 className="font-display text-2xl font-extrabold text-[#1F2937] mb-2">Como se registra cada pronostico</h1>
         <p className="text-sm text-[#4B5563] mb-6">Ningun resultado se anota despues de forma arbitraria. Este es el proceso exacto que sigue cada apuesta.</p>
@@ -44,15 +46,7 @@ export default function ComoFuncionaPage() {
         </div>
       </main>
 
-      <nav className="sticky bottom-0 bg-[#F3F1EA]/95 backdrop-blur-sm border-t border-black/15">
-        <div className="max-w-2xl mx-auto px-5 sm:px-8 py-3 flex justify-between text-xs">
-          <a href="/" className="text-[#4B5563]">Inicio</a>
-          <a href="/resultados" className="text-[#4B5563]">Resultados</a>
-          <a href="/estadisticas" className="text-[#4B5563]">Estadisticas</a>
-          <span className="font-semibold text-[#1F2937]">Como funciona</span>
-          <a href="/perfil" className="text-[#4B5563]">Perfil</a>
-        </div>
-      </nav>
+      <BottomNav active="como-funciona" />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation'
 import { useBetDetail } from '@/hooks/useBetDetail'
 import { formatBetType, formatDateFull, getStatusColor, getStatusVerb, formatSport } from '@/lib/utils'
 import { TelegramEmbed } from '@/components/TelegramEmbed'
+import { BottomNav } from '@/components/BottomNav'
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
@@ -21,7 +22,7 @@ export default function DetalleApuestaPage() {
   const { bet, legs, loading } = useBetDetail(betId)
 
   return (
-    <div className="min-h-screen bg-[#F3F1EA]">
+    <div className="min-h-dvh bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center gap-3">
           <a href="/resultados" className="text-white/70 text-sm">&larr; Volver</a>
@@ -29,7 +30,7 @@ export default function DetalleApuestaPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6">
+      <main className="max-w-2xl mx-auto px-5 sm:px-8 py-6 pb-28">
         {loading && <p className="text-sm text-[#4B5563]">Cargando...</p>}
 
         {!loading && !bet && (
@@ -88,15 +89,7 @@ export default function DetalleApuestaPage() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 bg-[#F3F1EA]/95 backdrop-blur-sm border-t border-black/15">
-        <div className="max-w-2xl mx-auto px-5 sm:px-8 py-3 flex justify-between text-xs">
-          <a href="/" className="text-[#4B5563]">Inicio</a>
-          <a href="/resultados" className="text-[#4B5563]">Resultados</a>
-          <a href="/estadisticas" className="text-[#4B5563]">Estadisticas</a>
-          <a href="/como-funciona" className="text-[#4B5563]">Como funciona</a>
-          <a href="/perfil" className="text-[#4B5563]">Perfil</a>
-        </div>
-      </nav>
+      <BottomNav active="resultados" />
     </div>
   )
 }

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useBetsFullData } from '@/hooks/useBetsFullData'
 import { InfoTooltip } from '@/components/InfoTooltip'
+import { BottomNav } from '@/components/BottomNav'
 
 function formatUnits(value: number): string {
   const sign = value > 0 ? '+' : ''
@@ -110,7 +111,7 @@ export default function EstadisticasPage() {
   }, [bets, sport])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
+    <div className="min-h-dvh flex flex-col bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
           <a href="/" className="font-display font-bold tracking-wide text-sm">RAGUX</a>
@@ -118,7 +119,7 @@ export default function EstadisticasPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-5">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-5 pb-28">
         <h1 className="font-display text-xl font-extrabold text-[#1F2937] mb-4">Estadisticas</h1>
 
         <p className="text-[10px] font-bold uppercase tracking-wider text-[#4B5563] mb-2">Deporte</p>
@@ -176,15 +177,7 @@ export default function EstadisticasPage() {
         )}
       </main>
 
-      <nav className="sticky bottom-0 bg-[#F3F1EA]/95 backdrop-blur-sm border-t border-black/15">
-        <div className="max-w-2xl mx-auto px-5 sm:px-8 py-3 flex justify-between text-xs">
-          <a href="/" className="text-[#4B5563]">Inicio</a>
-          <a href="/resultados" className="text-[#4B5563]">Resultados</a>
-          <span className="font-semibold text-[#1F2937]">Estadisticas</span>
-          <a href="/como-funciona" className="text-[#4B5563]">Como funciona</a>
-          <a href="/perfil" className="text-[#4B5563]">Perfil</a>
-        </div>
-      </nav>
+      <BottomNav active="estadisticas" />
     </div>
   )
 }

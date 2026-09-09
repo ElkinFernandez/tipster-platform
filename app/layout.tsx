@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Sora, Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,12 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "Tipster Platform",
   description: "No te pedimos que confíes. Compruébalo.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

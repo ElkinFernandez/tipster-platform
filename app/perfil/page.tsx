@@ -2,6 +2,7 @@
 
 import { useTipster } from '@/hooks/useTipster'
 import { useBetsFullData } from '@/hooks/useBetsFullData'
+import { BottomNav } from '@/components/BottomNav'
 
 export default function PerfilPage() {
   const { tipster, loading: loadingTipster } = useTipster()
@@ -12,7 +13,7 @@ export default function PerfilPage() {
   const telegramUrl = tipster?.telegram_url || 'https://t.me/PredictorRM'
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F3F1EA]">
+    <div className="min-h-dvh flex flex-col bg-[#F3F1EA]">
       <header className="bg-[#1F2937] text-white">
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
           <a href="/" className="font-display font-bold tracking-wide text-sm">RAGUX</a>
@@ -26,7 +27,7 @@ export default function PerfilPage() {
         <p className="text-xs text-white/45 mt-1">{loadingBets ? '' : bets.length + ' pronosticos publicados'}</p>
       </section>
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-6">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-5 sm:px-8 py-6 pb-28">
         <p className="text-xs font-bold uppercase tracking-wider text-[#FF9933] mb-2">Metodologia</p>
         <p className="text-sm text-[#4B5563] leading-relaxed mb-6">{bio}</p>
 
@@ -39,15 +40,7 @@ export default function PerfilPage() {
         </div>
       </main>
 
-      <nav className="sticky bottom-0 bg-[#F3F1EA]/95 backdrop-blur-sm border-t border-black/15">
-        <div className="max-w-2xl mx-auto px-5 sm:px-8 py-3 flex justify-between text-xs">
-          <a href="/" className="text-[#4B5563]">Inicio</a>
-          <a href="/resultados" className="text-[#4B5563]">Resultados</a>
-          <a href="/estadisticas" className="text-[#4B5563]">Estadisticas</a>
-          <a href="/como-funciona" className="text-[#4B5563]">Como funciona</a>
-          <span className="font-semibold text-[#1F2937]">Perfil</span>
-        </div>
-      </nav>
+      <BottomNav active="perfil" />
     </div>
   )
 }
